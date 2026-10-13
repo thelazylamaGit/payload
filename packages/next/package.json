@@ -60,7 +60,10 @@
       "types": "./src/exports/views.ts",
       "default": "./src/exports/views.ts"
     },
-    "./cacheComponentsLoader": "./src/withPayload/cacheComponentsLoader.cjs"
+    "./withPayload/instantLoader": {
+      "import": "./src/withPayload/instantLoader.js",
+      "default": "./src/withPayload/instantLoader.js"
+    }
   },
   "main": "./src/index.js",
   "types": "./src/index.js",
@@ -80,8 +83,8 @@
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
     "build:without_reactcompiler": "rm -rf dist && rm -rf tsconfig.tsbuildinfo && pnpm copyfiles && pnpm build:types && pnpm build:swc && pnpm build:cjs && pnpm build:esbuild",
     "clean": "rimraf -g {dist,*.tsbuildinfo,esbuild}",
-    "copyfiles": "copyfiles -u 1 -e \"**/*.spec.*\" \"src/**/*.{cjs,html,css,ttf,woff,woff2,eot,svg,jpg,png,json}\" dist/",
-    "copyfiles:debug": "copyfiles -u 1 -e \"**/*.spec.*\" \"src/**/*.{cjs,html,css,scss,ttf,woff,woff2,eot,svg,jpg,png,json}\" dist/",
+    "copyfiles": "copyfiles -u 1 -e \"**/*.spec.*\" \"src/**/*.{html,css,ttf,woff,woff2,eot,svg,jpg,png,json}\" dist/",
+    "copyfiles:debug": "copyfiles -u 1 -e \"**/*.spec.*\" \"src/**/*.{html,css,scss,ttf,woff,woff2,eot,svg,jpg,png,json}\" dist/",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"
   },
@@ -94,7 +97,6 @@
     ]
   },
   "dependencies": {
-    "@babel/parser": "7.29.9",
     "@dnd-kit/core": "6.3.1",
     "@dnd-kit/modifiers": "9.0.0",
     "@dnd-kit/sortable": "10.0.0",
@@ -173,7 +175,10 @@
         "types": "./dist/exports/views.d.ts",
         "default": "./dist/exports/views.js"
       },
-      "./cacheComponentsLoader": "./dist/withPayload/cacheComponentsLoader.cjs"
+      "./withPayload/instantLoader": {
+        "import": "./dist/withPayload/instantLoader.js",
+        "default": "./dist/withPayload/instantLoader.js"
+      }
     },
     "main": "./dist/index.js",
     "registry": "https://registry.npmjs.org/",
