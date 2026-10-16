@@ -39,10 +39,14 @@ const toolbarGroups: ToolbarGroup[] = [
     {
       ChildComponent: AlignLeftIcon,
       isActive: ({ selection }) => {
-        if (!$isRangeSelection(selection)) {
+        if (!$isRangeSelection(selection) && !$isNodeSelection(selection)) {
           return false
         }
-        for (const node of selection.getNodes()) {
+        const nodes = selection.getNodes()
+        if (nodes.length === 0) {
+          return false
+        }
+        for (const node of nodes) {
           if ($isElementNode(node) || $isDecoratorBlockNode(node)) {
             if (getFormatType(node) === 'left') {
               continue
@@ -72,10 +76,14 @@ const toolbarGroups: ToolbarGroup[] = [
     {
       ChildComponent: AlignCenterIcon,
       isActive: ({ selection }) => {
-        if (!$isRangeSelection(selection)) {
+        if (!$isRangeSelection(selection) && !$isNodeSelection(selection)) {
           return false
         }
-        for (const node of selection.getNodes()) {
+        const nodes = selection.getNodes()
+        if (nodes.length === 0) {
+          return false
+        }
+        for (const node of nodes) {
           if ($isElementNode(node) || $isDecoratorBlockNode(node)) {
             if (getFormatType(node) === 'center') {
               continue
@@ -105,10 +113,14 @@ const toolbarGroups: ToolbarGroup[] = [
     {
       ChildComponent: AlignRightIcon,
       isActive: ({ selection }) => {
-        if (!$isRangeSelection(selection)) {
+        if (!$isRangeSelection(selection) && !$isNodeSelection(selection)) {
           return false
         }
-        for (const node of selection.getNodes()) {
+        const nodes = selection.getNodes()
+        if (nodes.length === 0) {
+          return false
+        }
+        for (const node of nodes) {
           if ($isElementNode(node) || $isDecoratorBlockNode(node)) {
             if (getFormatType(node) === 'right') {
               continue
@@ -138,10 +150,14 @@ const toolbarGroups: ToolbarGroup[] = [
     {
       ChildComponent: AlignJustifyIcon,
       isActive: ({ selection }) => {
-        if (!$isRangeSelection(selection)) {
+        if (!$isRangeSelection(selection) && !$isNodeSelection(selection)) {
           return false
         }
-        for (const node of selection.getNodes()) {
+        const nodes = selection.getNodes()
+        if (nodes.length === 0) {
+          return false
+        }
+        for (const node of nodes) {
           if ($isElementNode(node) || $isDecoratorBlockNode(node)) {
             if (getFormatType(node) === 'justify') {
               continue
