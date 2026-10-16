@@ -1,0 +1,105 @@
+name: Release Lexical fork
+
+on:
+  push:
+    tags:
+      - 'lexical-*-patches.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'New release tag, e.g. lexical-3.91.0-patches.1'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: lexical-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      NODE_OPTIONS: --max-old-space-size=4096
+      DO_NOT_TRACK: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        shell: bash
+        run: |
+          version=$(node -p "require('./packages/richtext-lexical/package.json').version")
+          prefix="lexical-${version}-patches."
+          revision="${RELEASE_TAG#"$prefix"}"
+          if [[ "$RELEASE_TAG" != "$prefix"* || ! "$revision" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Expected ${prefix}<positive integer>"
+            exit 1
+          fi
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
+          fi
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists. Use a new revision instead of replacing its assets."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          run_install: false
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:richtext-lexical
+      - name: Run focused regression tests
+        run: >-
+          pnpm exec vitest run --project unit
+          packages/richtext-lexical/src/features/blocks/client/component/BlockContent.spec.ts
+          packages/richtext-lexical/src/lexical/plugins/NodeViewOverridePlugin/index.spec.ts
+
+      - name: Pack and verify exports
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          pnpm -C packages/richtext-lexical pack --pack-destination "$GITHUB_WORKSPACE/artifacts"
+          python3 - <<'PY'
+          import glob, json, tarfile
+          archives = glob.glob('artifacts/*.tgz')
+          assert len(archives) == 1, archives
+          with tarfile.open(archives[0]) as archive:
+              manifest = json.load(archive.extractfile('package/package.json'))
+              assert manifest['name'] == '@payloadcms/richtext-lexical'
+              files = set(archive.getnames())
+              def check_exports(value):
+                  if isinstance(value, str) and value.startswith('./') and '*' not in value:
+                      assert 'package/' + value[2:] in files, value
+                  elif isinstance(value, dict):
+                      for target in value.values():
+                          check_exports(target)
+              check_exports(manifest['exports'])
+              for section in ('dependencies', 'peerDependencies', 'optionalDependencies', 'devDependencies'):
+                  for version in manifest.get(section, {}).values():
+                      assert not version.startswith(('workspace:', 'catalog:')), version
+          PY
+          cd artifacts
+          sha256sum ./*.tgz > SHA256SUMS
+
+      - name: Publish GitHub release assets
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" artifacts/*.tgz artifacts/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TAG" \
+            --notes "Compiled @payloadcms/richtext-lexical fork. See SHA256SUMS for the asset checksum." \
+            --latest=false
