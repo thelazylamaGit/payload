@@ -206,6 +206,15 @@ function InlineToolbar({
       possibleLinkEditor?.style?.['opacity' as keyof typeof possibleLinkEditor.style] === '1'
 
     const rootElement = editor.getRootElement()
+
+    if (
+      rootElement?.ownerDocument.activeElement
+        ?.closest('[data-lexical-toolbar-editor]')
+        ?.getAttribute('data-lexical-toolbar-editor') === editor.getKey()
+    ) {
+      return
+    }
+
     if (
       selection !== null &&
       nativeSelection !== null &&
@@ -322,6 +331,14 @@ function useInlineToolbar(
       const selection = $getSelection()
       const nativeSelection = getDOMSelection(editor._window)
       const rootElement = editor.getRootElement()
+
+      if (
+        rootElement?.ownerDocument.activeElement
+          ?.closest('[data-lexical-toolbar-editor]')
+          ?.getAttribute('data-lexical-toolbar-editor') === editor.getKey()
+      ) {
+        return
+      }
 
       if (
         nativeSelection !== null &&
