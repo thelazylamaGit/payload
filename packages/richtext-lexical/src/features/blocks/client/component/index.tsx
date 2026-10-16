@@ -48,6 +48,7 @@ import {
   useBlockComponentContext,
 } from './BlockContent.js'
 import { removeEmptyArrayValues } from './removeEmptyArrayValues.js'
+import { useBlockCollapsedState } from './useBlockCollapsedState.js'
 
 export type BlockComponentProps<TFormData extends Record<string, unknown> = BlockFields> = {
   /**
@@ -90,7 +91,7 @@ type BlockCollapsibleContextType = {
   RemoveButton: React.FC
   resolvedCustomBlock: React.ReactNode
   resolvedCustomLabel: React.ReactNode
-  setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>
+  setIsCollapsed: (isCollapsed: boolean) => void
 }
 
 const BlockCollapsibleContext = React.createContext<BlockCollapsibleContextType>(null!)
@@ -446,9 +447,12 @@ export const BlockComponent: React.FC<BlockComponentProps> = (props) => {
     clientBlock,
   ])
 
-  const [isCollapsed, setIsCollapsed] = React.useState<boolean>(
-    initialLexicalFormState?.[formData.id]?.collapsed ?? false,
-  )
+  const [isCollapsed, setIsCollapsed] = useBlockCollapsedState({
+    blockID: formData.id,
+    fieldName: parentLexicalRichTextField.name,
+    getDocPreferences,
+    initialState: initialLexicalFormState,
+  })
 
   const { i18n, t } = useTranslation<object, string>()
 

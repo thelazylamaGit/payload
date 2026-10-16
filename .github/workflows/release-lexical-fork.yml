@@ -65,6 +65,7 @@ jobs:
         run: >-
           pnpm exec vitest run --project unit
           packages/richtext-lexical/src/features/blocks/client/component/BlockContent.spec.ts
+          packages/richtext-lexical/src/features/blocks/client/component/useBlockCollapsedState.spec.ts
           packages/richtext-lexical/src/lexical/plugins/NodeViewOverridePlugin/index.spec.ts
 
       - name: Pack and verify exports
