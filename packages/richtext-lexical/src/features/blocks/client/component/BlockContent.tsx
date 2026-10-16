@@ -4,7 +4,7 @@ import type { ClientField, FormState } from 'payload'
 
 import { useLexicalEditable } from '@lexical/react/useLexicalEditable'
 import { RenderFields, useFormSubmitted } from '@payloadcms/ui'
-import React, { createContext, useMemo } from 'react'
+import React, { createContext } from 'react'
 
 export type BlockCollapsibleProps = {
   /**
@@ -90,6 +90,22 @@ const BlockComponentContext = createContext<BlockComponentContextType>({
 
 export const useBlockComponentContext = () => React.use(BlockComponentContext)
 
+const CollapsibleContext = createContext<{
+  Collapsible: BlockContentProps['Collapsible']
+  errorCount: number
+  fieldHasErrors: boolean
+}>(null!)
+
+const CollapsibleWithErrorProps = ({ children, ...rest }: BlockCollapsibleProps) => {
+  const { Collapsible, errorCount, fieldHasErrors } = React.use(CollapsibleContext)
+
+  return (
+    <Collapsible errorCount={errorCount} fieldHasErrors={fieldHasErrors} {...rest}>
+      {children}
+    </Collapsible>
+  )
+}
+
 /**
  * The actual content of the Block. This should be INSIDE a Form component,
  * scoped to the block. All format operations in here are thus scoped to the block's form, and
@@ -105,40 +121,32 @@ export const BlockContent: React.FC<BlockContentProps> = (props) => {
   const fieldHasErrors = hasSubmitted && errorCount > 0
   const isEditable = useLexicalEditable()
 
-  const CollapsibleWithErrorProps = useMemo(
-    () => (collapsibleProps: BlockCollapsibleProps) => {
-      const { children, ...rest } = collapsibleProps
-      return (
-        <Collapsible errorCount={errorCount} fieldHasErrors={fieldHasErrors} {...rest}>
-          {children}
-        </Collapsible>
-      )
-    },
-    [Collapsible, fieldHasErrors, errorCount],
-  )
-
   const blockContextValue: BlockComponentContextType = {
     ...contextProps,
     BlockCollapsible: CollapsibleWithErrorProps,
   }
 
   // Provide context for useBlockComponentContext() hook
-  return CustomBlock ? (
-    <BlockComponentContext value={blockContextValue}>
-      {CustomBlock}
-      <BlockDrawer />
-    </BlockComponentContext>
-  ) : (
-    <CollapsibleWithErrorProps>
-      <RenderFields
-        fields={formSchema}
-        forceRender={true}
-        parentIndexPath=""
-        parentPath={''}
-        parentSchemaPath=""
-        permissions={true}
-        readOnly={!isEditable}
-      />
-    </CollapsibleWithErrorProps>
+  return (
+    <CollapsibleContext value={{ Collapsible, errorCount, fieldHasErrors }}>
+      {CustomBlock ? (
+        <BlockComponentContext value={blockContextValue}>
+          {CustomBlock}
+          <BlockDrawer />
+        </BlockComponentContext>
+      ) : (
+        <CollapsibleWithErrorProps>
+          <RenderFields
+            fields={formSchema}
+            forceRender={true}
+            parentIndexPath=""
+            parentPath={''}
+            parentSchemaPath=""
+            permissions={true}
+            readOnly={!isEditable}
+          />
+        </CollapsibleWithErrorProps>
+      )}
+    </CollapsibleContext>
   )
 }

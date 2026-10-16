@@ -77,6 +77,120 @@ export type BlockComponentProps<TFormData extends Record<string, unknown> = Bloc
   readonly nodeKey: string
 }
 
+type BlockCollapsibleContextType = {
+  baseClass: string
+  blockDisplayName: React.ReactNode
+  blockType: string
+  disableBlockName?: boolean
+  EditButton: React.FC
+  i18n: ReturnType<typeof useTranslation<object, string>>['i18n']
+  isCollapsed: boolean
+  isEditable: boolean
+  onCollapsedChange: (isCollapsed: boolean) => void
+  RemoveButton: React.FC
+  resolvedCustomBlock: React.ReactNode
+  resolvedCustomLabel: React.ReactNode
+  setIsCollapsed: React.Dispatch<React.SetStateAction<boolean>>
+}
+
+const BlockCollapsibleContext = React.createContext<BlockCollapsibleContextType>(null!)
+
+const BlockCollapsible = ({
+  Actions,
+  children,
+  className,
+  collapsibleProps,
+  disableBlockName,
+  editButton,
+  errorCount,
+  fieldHasErrors,
+  Label,
+  Pill: CustomPill,
+  removeButton,
+}: BlockCollapsibleWithErrorProps) => {
+  const {
+    baseClass,
+    blockDisplayName,
+    blockType,
+    disableBlockName: disableBlockNameFromConfig,
+    EditButton,
+    i18n,
+    isCollapsed,
+    isEditable,
+    onCollapsedChange,
+    RemoveButton,
+    resolvedCustomBlock,
+    resolvedCustomLabel,
+    setIsCollapsed,
+  } = React.use(BlockCollapsibleContext)
+
+  return (
+    <div className={`${baseClass}__container ${baseClass}-${blockType}`}>
+      <Collapsible
+        className={[
+          `${baseClass}__row`,
+          fieldHasErrors ? `${baseClass}__row--has-errors` : `${baseClass}__row--no-errors`,
+          className,
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        collapsibleStyle={fieldHasErrors ? 'error' : 'default'}
+        header={
+          <div className={`${baseClass}__block-header`}>
+            {typeof Label !== 'undefined' ? (
+              Label
+            ) : typeof resolvedCustomLabel !== 'undefined' ? (
+              resolvedCustomLabel
+            ) : (
+              <div className={`${baseClass}__block-label`}>
+                {typeof CustomPill !== 'undefined' ? (
+                  CustomPill
+                ) : (
+                  <Pill
+                    className={`${baseClass}__block-pill ${baseClass}__block-pill-${blockType}`}
+                    pillStyle="white"
+                    size="small"
+                  >
+                    {blockDisplayName ?? blockType}
+                  </Pill>
+                )}
+                {!disableBlockName && !disableBlockNameFromConfig && (
+                  <SectionTitle path="blockName" readOnly={!isEditable} />
+                )}
+
+                {fieldHasErrors && <ErrorPill count={errorCount ?? 0} i18n={i18n} withMessage />}
+              </div>
+            )}
+
+            <div className={`${baseClass}__block-actions`}>
+              {typeof Actions !== 'undefined' ? (
+                Actions
+              ) : (
+                <>
+                  {(resolvedCustomBlock && editButton !== false) ||
+                  (!resolvedCustomBlock && editButton) ? (
+                    <EditButton />
+                  ) : null}
+                  {removeButton !== false && isEditable ? <RemoveButton /> : null}
+                </>
+              )}
+            </div>
+          </div>
+        }
+        isCollapsed={isCollapsed}
+        key={0}
+        onToggle={(incomingCollapsedState) => {
+          onCollapsedChange(incomingCollapsedState)
+          setIsCollapsed(incomingCollapsedState)
+        }}
+        {...(collapsibleProps || {})}
+      >
+        {children}
+      </Collapsible>
+    </div>
+  )
+}
+
 export const BlockComponent: React.FC<BlockComponentProps> = (props) => {
   const {
     cacheBuster,
@@ -524,104 +638,21 @@ export const BlockComponent: React.FC<BlockComponentProps> = (props) => {
     [baseClass, isEditable, removeBlock],
   )
 
-  const BlockCollapsible = useMemo(
-    () =>
-      ({
-        Actions,
-        children,
-        className,
-        collapsibleProps,
-        disableBlockName,
-        editButton,
-        errorCount,
-        fieldHasErrors,
-        Label,
-        Pill: CustomPill,
-        removeButton,
-      }: BlockCollapsibleWithErrorProps) => {
-        return (
-          <div className={`${baseClass}__container ${baseClass}-${blockType}`}>
-            <Collapsible
-              className={[
-                `${baseClass}__row`,
-                fieldHasErrors ? `${baseClass}__row--has-errors` : `${baseClass}__row--no-errors`,
-                className,
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              collapsibleStyle={fieldHasErrors ? 'error' : 'default'}
-              header={
-                <div className={`${baseClass}__block-header`}>
-                  {typeof Label !== 'undefined' ? (
-                    Label
-                  ) : typeof resolvedCustomLabel !== 'undefined' ? (
-                    resolvedCustomLabel
-                  ) : (
-                    <div className={`${baseClass}__block-label`}>
-                      {typeof CustomPill !== 'undefined' ? (
-                        CustomPill
-                      ) : (
-                        <Pill
-                          className={`${baseClass}__block-pill ${baseClass}__block-pill-${blockType}`}
-                          pillStyle="white"
-                          size="small"
-                        >
-                          {blockDisplayName ?? blockType}
-                        </Pill>
-                      )}
-                      {!disableBlockName && !clientBlock?.admin?.disableBlockName && (
-                        <SectionTitle path="blockName" readOnly={!isEditable} />
-                      )}
-
-                      {fieldHasErrors && (
-                        <ErrorPill count={errorCount ?? 0} i18n={i18n} withMessage />
-                      )}
-                    </div>
-                  )}
-
-                  <div className={`${baseClass}__block-actions`}>
-                    {typeof Actions !== 'undefined' ? (
-                      Actions
-                    ) : (
-                      <>
-                        {(resolvedCustomBlock && editButton !== false) ||
-                        (!resolvedCustomBlock && editButton) ? (
-                          <EditButton />
-                        ) : null}
-                        {removeButton !== false && isEditable ? <RemoveButton /> : null}
-                      </>
-                    )}
-                  </div>
-                </div>
-              }
-              isCollapsed={isCollapsed}
-              key={0}
-              onToggle={(incomingCollapsedState) => {
-                onCollapsedChange(incomingCollapsedState)
-                setIsCollapsed(incomingCollapsedState)
-              }}
-              {...(collapsibleProps || {})}
-            >
-              {children}
-            </Collapsible>
-          </div>
-        )
-      },
-    [
-      resolvedCustomBlock,
-      resolvedCustomLabel,
-      EditButton,
-      RemoveButton,
-      blockDisplayName,
-      baseClass,
-      clientBlock?.admin?.disableBlockName,
-      blockType,
-      i18n,
-      isCollapsed,
-      onCollapsedChange,
-      isEditable,
-    ],
-  )
+  const collapsibleContext: BlockCollapsibleContextType = {
+    baseClass,
+    blockDisplayName,
+    blockType,
+    disableBlockName: clientBlock?.admin?.disableBlockName,
+    EditButton,
+    i18n,
+    isCollapsed,
+    isEditable,
+    onCollapsedChange,
+    RemoveButton,
+    resolvedCustomBlock,
+    resolvedCustomLabel,
+    setIsCollapsed,
+  }
 
   const blockID = formData?.id
 
@@ -719,7 +750,6 @@ export const BlockComponent: React.FC<BlockComponentProps> = (props) => {
       </div>
     )
   }, [
-    BlockCollapsible,
     BlockDrawer,
     resolvedCustomBlock,
     resolvedCustomLabel,
@@ -741,13 +771,15 @@ export const BlockComponent: React.FC<BlockComponentProps> = (props) => {
 
   if (!clientBlock) {
     return (
-      <BlockCollapsible disableBlockName={true} fieldHasErrors={true}>
-        <div className={`${baseClass}-not-found`}>
-          Error: Block '{blockType}' not found in the config but exists in the lexical data
-        </div>
-      </BlockCollapsible>
+      <BlockCollapsibleContext value={collapsibleContext}>
+        <BlockCollapsible disableBlockName={true} fieldHasErrors={true}>
+          <div className={`${baseClass}-not-found`}>
+            Error: Block '{blockType}' not found in the config but exists in the lexical data
+          </div>
+        </BlockCollapsible>
+      </BlockCollapsibleContext>
     )
   }
 
-  return Block
+  return <BlockCollapsibleContext value={collapsibleContext}>{Block}</BlockCollapsibleContext>
 }
