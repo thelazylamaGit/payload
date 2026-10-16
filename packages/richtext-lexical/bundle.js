@@ -54,7 +54,7 @@ async function build() {
 
   // Bundle `client.ts`
   const resultClient = await esbuild.build({
-    entryPoints: ['dist/exports/client/index.js'],
+    entryPoints: ['dist/exports/client/index.js', 'dist/exports/client/internal-client.js'],
     bundle: true,
     platform: 'browser',
     format: 'esm',
