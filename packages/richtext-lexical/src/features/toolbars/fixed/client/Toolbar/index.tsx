@@ -15,6 +15,7 @@ import type { ToolbarGroup, ToolbarGroupItem } from '../../../types.js'
 import type { FixedToolbarFeatureProps } from '../../server/index.js'
 
 import { useEditorConfigContext } from '../../../../../lexical/config/client/EditorConfigProvider.js'
+import { getEditorInteractionHandlers } from '../../../../../lexical/utils/editorInteractions.js'
 import { ToolbarButton } from '../../../shared/ToolbarButton/index.js'
 import { ToolbarDropdown } from '../../../shared/ToolbarDropdown/index.js'
 import { useToolbarStates } from '../../../shared/useToolbarStates.js'
@@ -161,6 +162,7 @@ function FixedToolbar({
   parentWithFixedToolbar: EditorConfigContextType | false
 }): React.ReactNode {
   const currentToolbarRef = React.useRef<HTMLDivElement>(null)
+  const [owningEditor] = useLexicalComposerContext()
   const isEditable = useLexicalEditable()
 
   const { y } = useScrollInfo()
@@ -224,6 +226,7 @@ function FixedToolbar({
 
   return (
     <div
+      {...getEditorInteractionHandlers(editor, owningEditor)}
       className="fixed-toolbar"
       onFocus={(event) => {
         // Prevent other focus events being triggered. Otherwise, if this was to be clicked while in a child editor,

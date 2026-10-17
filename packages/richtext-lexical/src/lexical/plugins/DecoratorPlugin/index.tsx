@@ -1,6 +1,6 @@
 'use client'
 
-import type { DecoratorNode, ElementNode, LexicalNode } from 'lexical'
+import type { DecoratorNode, ElementNode, LexicalEditor, LexicalNode } from 'lexical'
 
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $findMatchingParent, mergeRegister } from '@lexical/utils'
@@ -24,9 +24,11 @@ import {
   KEY_BACKSPACE_COMMAND,
   KEY_DELETE_COMMAND,
   SELECTION_CHANGE_COMMAND,
+  SKIP_DOM_SELECTION_TAG,
 } from 'lexical'
 import { useEffect } from 'react'
 
+import { isEditorInteraction } from '../../utils/editorInteractions.js'
 import './index.scss'
 
 // TODO: This should ideally be fixed in Lexical. See
@@ -34,24 +36,78 @@ import './index.scss'
 export function DecoratorPlugin() {
   const [editor] = useLexicalComposerContext()
 
-  const $onDelete = (event: KeyboardEvent) => {
-    const selection = $getSelection()
-    if (!$isNodeSelection(selection)) {
-      return false
-    }
-    event.preventDefault()
-    selection.getNodes().forEach((node) => {
-      node.remove()
-    })
-    return true
-  }
-
   useEffect(() => {
+    const $onDelete = (event: KeyboardEvent, activeEditor: LexicalEditor) => {
+      if (activeEditor !== editor) {
+        return false
+      }
+      const selection = $getSelection()
+      if (!$isNodeSelection(selection)) {
+        return false
+      }
+      event.preventDefault()
+      selection.getNodes().forEach((node) => {
+        node.remove()
+      })
+      return true
+    }
+
+    let selectedElement: HTMLElement | null = null
+    let hasNodeSelection = false
+
+    const clearOutline = () => {
+      selectedElement?.classList.remove('decorator-selected')
+      selectedElement = null
+    }
+
+    const $syncOutline = () => {
+      const selection = $getSelection()
+      hasNodeSelection = $isNodeSelection(selection)
+      const element = $getSelectedDecorator()?.element ?? null
+      if (selectedElement !== element) {
+        clearOutline()
+        selectedElement = element
+      }
+      selectedElement?.classList.add('decorator-selected')
+    }
+
+    const clearNodeSelection = () => {
+      if (!hasNodeSelection && !selectedElement) {
+        return
+      }
+      clearOutline()
+      editor.update(
+        () => {
+          if ($isNodeSelection($getSelection())) {
+            $setSelection(null)
+          }
+        },
+        { tag: SKIP_DOM_SELECTION_TAG },
+      )
+    }
+
     return mergeRegister(
+      () => {
+        clearOutline()
+      },
+      editor.registerUpdateListener(({ editorState }) => {
+        editorState.read($syncOutline, { editor })
+      }),
+      editor.registerRootListener(() => {
+        clearOutline()
+        editor.getEditorState().read($syncOutline, { editor })
+      }),
+      registerOutsideInteractions({
+        clearNodeSelection,
+        editor,
+        hasNodeSelection: () => hasNodeSelection,
+      }),
       editor.registerCommand(
         CLICK_COMMAND,
-        (event) => {
-          document.querySelector('.decorator-selected')?.classList.remove('decorator-selected')
+        (event, activeEditor) => {
+          if (activeEditor !== editor) {
+            return false
+          }
           const decorator = $getDecoratorByMouseEvent(event)
           if (!decorator) {
             return true
@@ -61,11 +117,9 @@ export function DecoratorPlugin() {
             !(target instanceof HTMLElement) ||
             target.isContentEditable ||
             target.closest(
-              'button, textarea, input, .react-select, .code-editor, .no-select-decorator, [role="button"]',
+              'a, button, select, textarea, input, .react-select, .code-editor, .no-select-decorator, [role="button"]',
             )
-          if (isInteractive) {
-            $setSelection(null)
-          } else {
+          if (!isInteractive) {
             $selectDecorator(decorator)
           }
           return true
@@ -76,20 +130,21 @@ export function DecoratorPlugin() {
       editor.registerCommand(KEY_BACKSPACE_COMMAND, $onDelete, COMMAND_PRIORITY_LOW),
       editor.registerCommand(
         SELECTION_CHANGE_COMMAND,
-        () => {
-          const decorator = $getSelectedDecorator()
-          document.querySelector('.decorator-selected')?.classList.remove('decorator-selected')
-          if (decorator) {
-            decorator.element?.classList.add('decorator-selected')
-            return true
+        (_, activeEditor) => {
+          if (activeEditor !== editor) {
+            return false
           }
-          return false
+          $syncOutline()
+          return Boolean($getSelectedDecorator())
         },
         COMMAND_PRIORITY_LOW,
       ),
       editor.registerCommand(
         KEY_ARROW_UP_COMMAND,
-        (event) => {
+        (event, activeEditor) => {
+          if (activeEditor !== editor) {
+            return false
+          }
           // CASE 1: Node selection
           const selection = $getSelection()
           if ($isNodeSelection(selection)) {
@@ -146,7 +201,10 @@ export function DecoratorPlugin() {
       ),
       editor.registerCommand(
         KEY_ARROW_DOWN_COMMAND,
-        (event) => {
+        (event, activeEditor) => {
+          if (activeEditor !== editor) {
+            return false
+          }
           // CASE 1: Node selection
           const selection = $getSelection()
           if ($isNodeSelection(selection)) {
@@ -206,6 +264,83 @@ export function DecoratorPlugin() {
   return null
 }
 
+function registerOutsideInteractions({
+  clearNodeSelection,
+  editor,
+  hasNodeSelection,
+}: {
+  clearNodeSelection: () => void
+  editor: LexicalEditor
+  hasNodeSelection: () => boolean
+}) {
+  let removeRootListeners = () => {}
+  const removeRootListener = editor.registerRootListener((root) => {
+    removeRootListeners()
+    if (!root) {
+      return
+    }
+    const ownerDocument = root.ownerDocument
+    let isActive = true
+    let lastFocusEvent: FocusEvent | null = null
+    let blurTimeout: ReturnType<typeof setTimeout> | undefined
+
+    const onInteraction = (event: Event) => {
+      if (!hasNodeSelection()) {
+        return
+      }
+      // Wait for React capture handlers to identify portaled controls, even if
+      // a descendant stops propagation before the event reaches document again.
+      queueMicrotask(() => {
+        if (!isActive) {
+          return
+        }
+        if (event.type === 'focusin') {
+          lastFocusEvent = event as FocusEvent
+        }
+        if (!isEditorInteraction(editor, event)) {
+          clearNodeSelection()
+        }
+      })
+    }
+
+    const onFocusOut = (event: FocusEvent) => {
+      if (event.relatedTarget !== null || !hasNodeSelection()) {
+        return
+      }
+      clearTimeout(blurTimeout)
+      blurTimeout = setTimeout(() => {
+        if (!isActive) {
+          return
+        }
+        const activeElement = ownerDocument.activeElement
+        if (
+          !root.contains(activeElement) &&
+          !(lastFocusEvent?.target === activeElement && isEditorInteraction(editor, lastFocusEvent))
+        ) {
+          clearNodeSelection()
+        }
+      }, 0)
+    }
+
+    ownerDocument.addEventListener('pointerdown', onInteraction, true)
+    ownerDocument.addEventListener('focusin', onInteraction, true)
+    ownerDocument.addEventListener('focusout', onFocusOut, true)
+
+    removeRootListeners = () => {
+      isActive = false
+      clearTimeout(blurTimeout)
+      ownerDocument.removeEventListener('pointerdown', onInteraction, true)
+      ownerDocument.removeEventListener('focusin', onInteraction, true)
+      ownerDocument.removeEventListener('focusout', onFocusOut, true)
+    }
+  })
+
+  return () => {
+    removeRootListener()
+    removeRootListeners()
+  }
+}
+
 function $getDecoratorByMouseEvent(
   event: MouseEvent,
 ): { element: HTMLElement; node: DecoratorNode<unknown> } | undefined {
@@ -245,12 +380,10 @@ function $selectDecorator({
   element: HTMLElement
   node: DecoratorNode<unknown>
 }) {
-  document.querySelector('.decorator-selected')?.classList.remove('decorator-selected')
   const selection = $createNodeSelection()
   selection.add(node.getKey())
   $setSelection(selection)
   element.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-  element.classList.add('decorator-selected')
 }
 
 /**

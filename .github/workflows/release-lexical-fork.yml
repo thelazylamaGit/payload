@@ -67,6 +67,7 @@ jobs:
           packages/richtext-lexical/src/features/blocks/client/component/BlockContent.spec.ts
           packages/richtext-lexical/src/features/blocks/client/component/useBlockCollapsedState.spec.ts
           packages/richtext-lexical/src/lexical/plugins/NodeViewOverridePlugin/index.spec.ts
+          packages/richtext-lexical/src/lexical/plugins/DecoratorPlugin/index.spec.ts
 
       - name: Pack and verify exports
         shell: bash

@@ -26,6 +26,7 @@ import { SelectAllPlugin } from './plugins/SelectAllPlugin/index.js'
 import { SlashMenuPlugin } from './plugins/SlashMenu/index.js'
 import { TextPlugin } from './plugins/TextPlugin/index.js'
 import { LexicalContentEditable } from './ui/ContentEditable.js'
+import { getEditorInteractionHandlers } from './utils/editorInteractions.js'
 
 export const LexicalEditor: React.FC<
   {
@@ -94,7 +95,12 @@ export const LexicalEditor: React.FC<
           return <EditorPlugin clientProps={plugin.clientProps} key={plugin.key} plugin={plugin} />
         }
       })}
-      <div className="editor-container" dir={rtl ? 'rtl' : undefined} ref={editorContainerRef}>
+      <div
+        {...getEditorInteractionHandlers(editor)}
+        className="editor-container"
+        dir={rtl ? 'rtl' : undefined}
+        ref={editorContainerRef}
+      >
         {editorConfig.features.plugins?.map((plugin) => {
           if (plugin.position === 'top') {
             return (
