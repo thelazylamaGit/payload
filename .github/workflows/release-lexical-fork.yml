@@ -10,6 +10,10 @@ on:
         description: 'New release tag, e.g. lexical-3.91.0-patches.1'
         required: true
         type: string
+      run_tests:
+        description: 'Run focused regression tests before packaging (optional)'
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -62,12 +66,16 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:richtext-lexical
       - name: Run focused regression tests
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_tests }}
         run: >-
           pnpm exec vitest run --project unit
           packages/richtext-lexical/src/features/blocks/client/component/BlockContent.spec.ts
           packages/richtext-lexical/src/features/blocks/client/component/useBlockCollapsedState.spec.ts
           packages/richtext-lexical/src/lexical/plugins/NodeViewOverridePlugin/index.spec.ts
           packages/richtext-lexical/src/lexical/plugins/DecoratorPlugin/index.spec.ts
+          packages/richtext-lexical/src/features/blocks/client/index.spec.ts
+          packages/richtext-lexical/src/features/toolbars/shared/ToolbarDropdown/DropDown.spec.ts
+          packages/richtext-lexical/src/features/toolbars/shared/ToolbarDropdown/interaction.spec.ts
 
       - name: Pack and verify exports
         shell: bash

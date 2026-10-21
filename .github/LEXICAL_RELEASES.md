@@ -1,8 +1,25 @@
 # Releasing the Lexical fork
 
 The `Release Lexical fork` workflow builds only richtext-lexical and its workspace
-build dependencies, runs focused regression tests, and uploads an installable
+build dependencies, verifies the packed exports, and uploads an installable
 `.tgz` plus `SHA256SUMS` to a GitHub release. It does not publish to npm.
+
+Releases skip regression tests by default, including releases triggered by pushing
+a tag. Test locally before tagging, or enable **Run focused regression tests**
+when starting the workflow manually. Build and package verification always run.
+
+To run the same focused checks locally:
+
+```bash
+pnpm exec vitest run --project unit \
+  packages/richtext-lexical/src/features/blocks/client/component/BlockContent.spec.ts \
+  packages/richtext-lexical/src/features/blocks/client/component/useBlockCollapsedState.spec.ts \
+  packages/richtext-lexical/src/lexical/plugins/NodeViewOverridePlugin/index.spec.ts \
+  packages/richtext-lexical/src/lexical/plugins/DecoratorPlugin/index.spec.ts \
+  packages/richtext-lexical/src/features/blocks/client/index.spec.ts \
+  packages/richtext-lexical/src/features/toolbars/shared/ToolbarDropdown/DropDown.spec.ts \
+  packages/richtext-lexical/src/features/toolbars/shared/ToolbarDropdown/interaction.spec.ts
+```
 
 From the commit you want to release, use a new revision:
 
