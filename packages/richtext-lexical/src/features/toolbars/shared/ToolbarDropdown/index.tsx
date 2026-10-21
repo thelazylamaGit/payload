@@ -80,6 +80,7 @@ const ToolbarItem = ({
       editor={editor}
       enabled={enabled}
       Icon={item?.ChildComponent ? <item.ChildComponent /> : undefined}
+      isLabelTruncated={title !== croppedTitle}
       item={item}
       itemKey={item.key}
       key={item.key}

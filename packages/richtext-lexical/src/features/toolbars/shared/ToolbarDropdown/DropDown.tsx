@@ -31,6 +31,7 @@ export function DropDownItem({
   editor,
   enabled,
   Icon,
+  isLabelTruncated = false,
   item,
   itemKey,
   tooltip,
@@ -40,6 +41,7 @@ export function DropDownItem({
   editor: LexicalEditor
   enabled?: boolean
   Icon: React.ReactNode
+  isLabelTruncated?: boolean
   item: ToolbarGroupItem
   itemKey: string
   tooltip?: string
@@ -79,6 +81,8 @@ export function DropDownItem({
       disabled={enabled === false}
       extraButtonProps={{
         'data-item-key': itemKey,
+        // Button otherwise adds a native title even when its label is already visible.
+        title: isLabelTruncated ? tooltip : undefined,
       }}
       icon={Icon}
       iconPosition="left"
@@ -103,7 +107,6 @@ export function DropDownItem({
         e.preventDefault()
       }}
       ref={ref}
-      tooltip={tooltip}
       type="button"
     >
       {children}

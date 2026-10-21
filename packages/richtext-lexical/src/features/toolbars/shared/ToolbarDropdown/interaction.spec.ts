@@ -71,7 +71,7 @@ async function click(element: HTMLElement) {
   })
 }
 
-async function mountEditor() {
+async function mountEditor({ blockLabel = 'hero' }: { blockLabel?: string } = {}) {
   const container = document.createElement('div')
   const editable = document.createElement('div')
   const outside = document.createElement('button')
@@ -82,7 +82,12 @@ async function mountEditor() {
     nodes: [BlockNode, InlineBlockNode],
     onError: (error) => errors.push(error),
   })
-  const field = (slug: string) => [{ blocks: [{ fields: [], slug }], type: 'blocks' }]
+  const field = (slug: string) => [
+    {
+      blocks: [{ fields: [], labels: { singular: slug === 'hero' ? blockLabel : slug }, slug }],
+      type: 'blocks',
+    },
+  ]
   const featureClientSchemaMap = {
     blocks: {
       'content.lexical_internal_feature.blocks.lexical_blocks.hero': field('hero'),
@@ -223,6 +228,33 @@ describe('Blocks Add menu with a real Lexical editor', () => {
     expect(choice('block-hero')).toBeNull()
     expect(editor.getEditorState().toJSON()).toEqual(before)
     expect(errors).toEqual([])
+  })
+
+  it('should omit redundant native and Payload tooltips from labelled menu rows', async () => {
+    await mountEditor()
+    await click(button('add'))
+    await click(button('blocks'))
+
+    const row = choice('block-hero')
+
+    expect(row.getAttribute('aria-label')).toBe('hero')
+    expect(row.hasAttribute('title')).toBe(false)
+    expect(row.classList.contains('btn--has-tooltip')).toBe(false)
+  })
+
+  it('should keep only a native tooltip for a truncated label', async () => {
+    const blockLabel = 'A very long block name that needs truncation'
+
+    await mountEditor({ blockLabel })
+    await click(button('add'))
+    await click(button('blocks'))
+
+    const row = choice('block-hero')
+
+    expect(row.textContent).toBe(blockLabel.substring(0, 25) + '...')
+    expect(row.getAttribute('aria-label')).toBe(blockLabel)
+    expect(row.getAttribute('title')).toBe(blockLabel)
+    expect(row.classList.contains('btn--has-tooltip')).toBe(false)
   })
 
   it('should preserve the selection while browsing categories', async () => {
