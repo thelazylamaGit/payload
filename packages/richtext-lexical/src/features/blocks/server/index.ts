@@ -24,9 +24,18 @@ import { blockValidationHOC } from './validate.js'
 export type BlocksFeatureProps = {
   blocks?: (Block | BlockSlug)[] | Block[]
   inlineBlocks?: (Block | BlockSlug)[] | Block[]
+  /**
+   * Where block insertion menus appear. `none` preserves slash-menu insertion.
+   * @default 'toolbar'
+   */
+  toolbarPlacement?: 'add' | 'none' | 'toolbar'
 }
 
-export const BlocksFeature = createServerFeature<BlocksFeatureProps, BlocksFeatureProps>({
+export const BlocksFeature = createServerFeature<
+  BlocksFeatureProps,
+  BlocksFeatureProps,
+  Pick<BlocksFeatureProps, 'toolbarPlacement'>
+>({
   feature: async ({ config: _config, isRoot, parentIsLocalized, props: _props }) => {
     const validRelationships = _config.collections.map((c) => c.slug) || []
 
@@ -87,6 +96,7 @@ export const BlocksFeature = createServerFeature<BlocksFeatureProps, BlocksFeatu
 
     return {
       ClientFeature: '@payloadcms/richtext-lexical/client#BlocksFeatureClient',
+      clientFeatureProps: { toolbarPlacement: _props.toolbarPlacement ?? 'toolbar' },
       generatedTypes: {
         modifyOutputSchema: ({
           collectionIDFieldTypes,

@@ -13,6 +13,7 @@ import type { ToolbarGroupState } from '../useToolbarStates.js'
 import { useEditorConfigContext } from '../../../../lexical/config/client/EditorConfigProvider.js'
 import './index.scss'
 import { DropDown, DropDownItem } from './DropDown.js'
+import { ToolbarSubmenu } from './Submenu/index.js'
 
 const ToolbarItem = ({
   active,
@@ -61,6 +62,18 @@ const ToolbarItem = ({
     croppedTitle = title
   }
 
+  if (item.submenu) {
+    return (
+      <ToolbarSubmenu
+        anchorElem={anchorElem}
+        editor={editor}
+        enabled={enabled}
+        group={item.submenu}
+        label={title}
+      />
+    )
+  }
+
   return (
     <DropDownItem
       active={active}
@@ -86,6 +99,7 @@ export const ToolbarDropdown = ({
   group,
   groupState,
   Icon,
+  isSubmenu = false,
   itemsContainerClassNames,
   label,
 }: {
@@ -95,6 +109,7 @@ export const ToolbarDropdown = ({
   group: ToolbarDropdownGroup
   groupState: ToolbarGroupState
   Icon?: React.FC
+  isSubmenu?: boolean
   itemsContainerClassNames?: string[]
   label?: string
 }) => {
@@ -124,7 +139,13 @@ export const ToolbarDropdown = ({
       disabled={!groupState.enabledGroup}
       dropdownKey={groupKey}
       Icon={Icon}
-      itemsContainerClassNames={[`${baseClass}-items`, ...(itemsContainerClassNames || [])]}
+      isSubmenu={isSubmenu}
+      itemsContainerClassNames={[
+        `${baseClass}-items`,
+        ...(isSubmenu ? [`${baseClass}-items-submenu`] : []),
+        ...(items.some((item) => item.submenu) ? [`${baseClass}-items-has-submenus`] : []),
+        ...(itemsContainerClassNames || []),
+      ]}
       key={groupKey}
       label={label}
     >

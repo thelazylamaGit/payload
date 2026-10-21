@@ -114,6 +114,8 @@ export type ToolbarGroupItem = {
   /** Each toolbar item needs to have a unique key. */
   onSelect?: ({ editor, isActive }: { editor: LexicalEditor; isActive: boolean }) => void
   order?: number
+  /** Opens an existing dropdown as a child menu instead of executing an action. */
+  submenu?: ToolbarDropdownGroup
 }
 
 export type CustomGroups = Record<

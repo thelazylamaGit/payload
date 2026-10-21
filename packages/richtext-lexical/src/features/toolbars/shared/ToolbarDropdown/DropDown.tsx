@@ -1,7 +1,15 @@
 'use client'
 import { Button } from '@payloadcms/ui'
 import { $addUpdateTag, isDOMNode, type LexicalEditor } from 'lexical'
-import React, { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import { createPortal } from 'react-dom'
 
 import type { ToolbarGroupItem } from '../../types.js'
@@ -9,7 +17,10 @@ import type { ToolbarGroupItem } from '../../types.js'
 const baseClass = 'toolbar-popup__dropdown-item'
 
 interface DropDownContextType {
-  registerItem: (ref: React.RefObject<HTMLButtonElement | null>) => void
+  activeSubmenu?: string
+  menuRef: React.RefObject<HTMLDivElement | null>
+  registerItem: (ref: React.RefObject<HTMLButtonElement | null>) => () => void
+  setActiveSubmenu: React.Dispatch<React.SetStateAction<string | undefined>>
 }
 
 const DropDownContext = React.createContext<DropDownContextType | null>(null)
@@ -54,9 +65,9 @@ export function DropDownItem({
 
   const { registerItem } = dropDownContext
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (ref?.current != null) {
-      registerItem(ref)
+      return registerItem(ref)
     }
   }, [ref, registerItem])
 
@@ -103,14 +114,17 @@ export function DropDownItem({
 function DropDownItems({
   children,
   dropDownRef,
+  isSubmenu,
   itemsContainerClassNames,
   onClose,
 }: {
   children: React.ReactNode
-  dropDownRef: React.Ref<HTMLDivElement>
+  dropDownRef: React.RefObject<HTMLDivElement | null>
+  isSubmenu: boolean
   itemsContainerClassNames?: string[]
   onClose: () => void
 }): React.ReactElement {
+  const [activeSubmenu, setActiveSubmenu] = useState<string>()
   const [items, setItems] = useState<Array<React.RefObject<HTMLButtonElement | null>>>()
   const [highlightedItem, setHighlightedItem] =
     useState<React.RefObject<HTMLButtonElement | null>>()
@@ -118,51 +132,52 @@ function DropDownItems({
   const registerItem = useCallback(
     (itemRef: React.RefObject<HTMLButtonElement | null>) => {
       setItems((prev) => (prev != null ? [...prev, itemRef] : [itemRef]))
+      return () => setItems((prev) => prev?.filter((item) => item !== itemRef))
     },
     [setItems],
   )
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>): void => {
-    if (items == null) {
-      return
-    }
-
+    // React events from a portaled child menu also bubble through its parent menu.
+    event.stopPropagation()
     const { key } = event
+    const enabledItems = items?.filter((item) => item.current && !item.current.disabled) ?? []
 
-    if (['ArrowDown', 'ArrowUp', 'Escape', 'Tab'].includes(key)) {
+    if (
+      ['ArrowDown', 'ArrowUp', 'Escape', 'Tab'].includes(key) ||
+      (isSubmenu && key === 'ArrowLeft')
+    ) {
       event.preventDefault()
     }
 
-    if (key === 'Escape' || key === 'Tab') {
+    if (key === 'Escape' || key === 'Tab' || (isSubmenu && key === 'ArrowLeft')) {
       onClose()
-    } else if (key === 'ArrowUp') {
-      setHighlightedItem((prev) => {
-        if (prev == null) {
-          return items[0]
-        }
-        const index = items.indexOf(prev) - 1
-        return items[index === -1 ? items.length - 1 : index]
-      })
-    } else if (key === 'ArrowDown') {
-      setHighlightedItem((prev) => {
-        if (prev == null) {
-          return items[0]
-        }
-        return items[items.indexOf(prev) + 1]
-      })
+    } else if ((key === 'ArrowUp' || key === 'ArrowDown') && enabledItems.length) {
+      setActiveSubmenu(undefined)
+      const currentIndex = enabledItems.findIndex((item) => item.current === document.activeElement)
+      const nextIndex =
+        currentIndex === -1
+          ? 0
+          : (currentIndex + (key === 'ArrowUp' ? -1 : 1) + enabledItems.length) %
+            enabledItems.length
+      setHighlightedItem(enabledItems[nextIndex])
+      enabledItems[nextIndex]?.current?.focus()
     }
   }
 
   const contextValue = useMemo(
     () => ({
+      activeSubmenu,
+      menuRef: dropDownRef,
       registerItem,
+      setActiveSubmenu,
     }),
-    [registerItem],
+    [activeSubmenu, dropDownRef, registerItem],
   )
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (items != null && highlightedItem == null) {
-      setHighlightedItem(items[0])
+      setHighlightedItem(items.find((item) => item.current && !item.current.disabled))
     }
 
     if (highlightedItem != null && highlightedItem?.current != null) {
@@ -174,6 +189,17 @@ function DropDownItems({
     <DropDownContext value={contextValue}>
       <div
         className={(itemsContainerClassNames ?? ['toolbar-popup__dropdown-items']).join(' ')}
+        onFocusCapture={(event) => {
+          const target = event.target as HTMLElement
+
+          if (event.currentTarget.contains(target)) {
+            const focusedItem = items?.find((item) => item.current === target)
+
+            if (focusedItem) {
+              setHighlightedItem(focusedItem)
+            }
+          }
+        }}
         onKeyDown={handleKeyDown}
         ref={dropDownRef}
       >
@@ -190,6 +216,7 @@ export function DropDown({
   disabled = false,
   dropdownKey,
   Icon,
+  isSubmenu = false,
   itemsContainerClassNames,
   label,
   stopCloseOnClickSelf,
@@ -200,13 +227,37 @@ export function DropDown({
   disabled?: boolean
   dropdownKey: string
   Icon?: React.FC
+  isSubmenu?: boolean
   itemsContainerClassNames?: string[]
   label?: string
   stopCloseOnClickSelf?: boolean
 }): React.ReactNode {
   const dropDownRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
-  const [showDropDown, setShowDropDown] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const parentContext = React.use(DropDownContext)
+  const parentMenu = isSubmenu ? parentContext : null
+  const showDropDown = parentMenu ? parentMenu.activeSubmenu === dropdownKey : isOpen
+  const setActiveSubmenu = parentMenu?.setActiveSubmenu
+  const setShowDropDown = useCallback(
+    (shouldOpen: boolean) => {
+      if (setActiveSubmenu) {
+        setActiveSubmenu(shouldOpen ? dropdownKey : undefined)
+      } else {
+        setIsOpen(shouldOpen)
+      }
+    },
+    [dropdownKey, setActiveSubmenu],
+  )
+
+  const parentMenuRef = parentMenu?.menuRef
+  const registerItem = parentMenu?.registerItem
+
+  useLayoutEffect(() => {
+    if (registerItem) {
+      return registerItem(buttonRef)
+    }
+  }, [registerItem])
 
   const handleClose = (): void => {
     setShowDropDown(false)
@@ -215,17 +266,58 @@ export function DropDown({
     }
   }
 
-  useEffect(() => {
-    const button = buttonRef.current
-    const dropDown = dropDownRef.current
-
-    if (showDropDown && button !== null && dropDown !== null) {
-      const { left, top } = button.getBoundingClientRect()
-      const scrollTopOffset = window.scrollY || document.documentElement.scrollTop
-      dropDown.style.top = `${top + scrollTopOffset + button.offsetHeight + 5}px`
-      dropDown.style.left = `${Math.min(left - 5, window.innerWidth - dropDown.offsetWidth - 20)}px`
+  useLayoutEffect(() => {
+    if (!showDropDown) {
+      return
     }
-  }, [dropDownRef, buttonRef, showDropDown])
+
+    const updatePosition = () => {
+      const button = buttonRef.current
+      const dropDown = dropDownRef.current
+
+      if (!button || !dropDown) {
+        return
+      }
+
+      const { bottom, left, right, top } = button.getBoundingClientRect()
+      const gap = 5
+      const maxLeft = window.innerWidth - dropDown.offsetWidth - gap
+      const canOpenRight = right + gap <= maxLeft
+      const canOpenLeft = left - dropDown.offsetWidth - gap >= gap
+      const shouldStack = isSubmenu && !canOpenRight && !canOpenLeft
+      const parentRect = parentMenuRef?.current?.getBoundingClientRect()
+      let preferredLeft = left - gap
+      let preferredTop = bottom + gap
+
+      if (isSubmenu) {
+        if (shouldStack) {
+          // On narrow screens, stack below Add so both category buttons stay reachable.
+          preferredLeft = parentRect?.left ?? left
+          preferredTop = (parentRect?.bottom ?? bottom) + gap
+        } else {
+          preferredLeft = canOpenRight ? right + gap : left - dropDown.offsetWidth - gap
+          preferredTop = top
+        }
+      }
+
+      dropDown.style.maxHeight = shouldStack
+        ? `${Math.max(80, window.innerHeight - preferredTop - gap)}px`
+        : ''
+      const maxTop = window.innerHeight - dropDown.offsetHeight - gap
+
+      dropDown.style.top = `${Math.max(gap, Math.min(preferredTop, maxTop)) + window.scrollY}px`
+      dropDown.style.left = `${Math.max(gap, Math.min(preferredLeft, maxLeft)) + window.scrollX}px`
+    }
+
+    updatePosition()
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+
+    return () => {
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [isSubmenu, parentMenuRef, showDropDown])
 
   useEffect(() => {
     const button = buttonRef.current
@@ -251,11 +343,12 @@ export function DropDown({
         document.removeEventListener('click', handle)
       }
     }
-  }, [dropDownRef, buttonRef, showDropDown, stopCloseOnClickSelf])
+  }, [dropDownRef, buttonRef, setShowDropDown, showDropDown, stopCloseOnClickSelf])
 
   const portal = createPortal(
     <DropDownItems
       dropDownRef={dropDownRef}
+      isSubmenu={isSubmenu}
       itemsContainerClassNames={itemsContainerClassNames}
       onClose={handleClose}
     >
@@ -267,13 +360,30 @@ export function DropDown({
   return (
     <React.Fragment>
       <button
+        aria-expanded={showDropDown}
+        aria-haspopup="true"
         aria-label={buttonAriaLabel}
         className={buttonClassName + (showDropDown ? ' active' : '')}
         data-dropdown-key={dropdownKey}
         disabled={disabled}
         onClick={(event) => {
           event.preventDefault()
-          setShowDropDown(!showDropDown)
+          if (isSubmenu) {
+            // Keep the parent menu mounted while its child dropdown is open.
+            event.stopPropagation()
+          }
+          if (showDropDown) {
+            handleClose()
+          } else {
+            setShowDropDown(true)
+          }
+        }}
+        onKeyDown={(event) => {
+          if (isSubmenu && event.key === 'ArrowRight') {
+            event.preventDefault()
+            event.stopPropagation()
+            setShowDropDown(true)
+          }
         }}
         onMouseDown={(e) => {
           // This fixes a bug where you are unable to click the button if you are in a NESTED editor (editor in blocks field in editor).
