@@ -5,7 +5,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClipboardPasteData } from './types.js'
 
 import { clipboardCopy, clipboardPaste } from './clipboardUtilities.js'
-import { compactClipboardBlockSchema } from './compactClipboardBlockSchema.js'
 import { canInsertBlock, insertBlockFromClipboard } from './insertBlockFromClipboard.js'
 import {
   mergeFormStateFromClipboard,
@@ -68,7 +67,7 @@ function copied(): ClipboardPasteData {
       'source.1.body': {
         value: structuredClone(richText),
         valid: true,
-        ...{ clipboardBlocks: [compactClipboardBlockSchema(embedded)] },
+        ...{ clipboardBlocks: [embedded] },
       },
       'source.1.settings.theme': { value: 'dark-unsaved', valid: true },
       'source.1.settings.id': { value: 'user-defined-id', valid: true },
@@ -255,48 +254,53 @@ describe('native block insertion', () => {
     },
   )
 
-  it('should resolve nested blockReferences when regenerating embedded structural IDs', () => {
-    const data = copied()
-    const nested: ClientBlock = {
-      slug: 'nested',
-      fields: [{ name: 'reference', type: 'relationship', relationTo: 'pages' }],
-    }
-    const schema = structuredClone(embedded)
-    schema.fields = [{ name: 'nested', type: 'blocks', blockReferences: ['nested'], blocks: [] }]
-    const body = {
-      root: {
-        type: 'root',
-        children: [
-          {
-            type: 'inlineBlock',
-            fields: {
-              id: 'old-inline',
-              blockType: 'embedded',
-              nested: [
-                { id: 'old-nested', blockType: 'nested', reference: { id: 'keep-reference' } },
-              ],
+  it.each(['blockReferences', 'blocks'] as const)(
+    'should resolve nested slug references from %s when regenerating embedded structural IDs',
+    (referenceList) => {
+      const data = copied()
+      const nested: ClientBlock = {
+        slug: 'nested',
+        fields: [{ name: 'reference', type: 'relationship', relationTo: 'pages' }],
+      }
+      const schema = structuredClone(embedded)
+      schema.fields = [
+        { name: 'nested', type: 'blocks', [referenceList]: ['nested'] },
+      ] as ClientBlock['fields']
+      const body = {
+        root: {
+          type: 'root',
+          children: [
+            {
+              type: 'inlineBlock',
+              fields: {
+                id: 'old-inline',
+                blockType: 'embedded',
+                nested: [
+                  { id: 'old-nested', blockType: 'nested', reference: { id: 'keep-reference' } },
+                ],
+              },
             },
-          },
-        ],
-      },
-    }
-    data.data['source.1.body'] = {
-      value: body,
-      valid: true,
-      ...{ clipboardBlocks: [compactClipboardBlockSchema(schema)] },
-    }
-    const result = insertBlockFromClipboard({
-      blocksMap: { nested },
-      dataFromClipboard: data,
-      formState: destination(0),
-      path: 'target',
-      rowIndex: 0,
-    })
-    const value = result['target.0.body'].value as typeof body
-    expect(value.root.children[0].fields.id).not.toBe('old-inline')
-    expect(value.root.children[0].fields.nested[0].id).not.toBe('old-nested')
-    expect(value.root.children[0].fields.nested[0].reference.id).toBe('keep-reference')
-  })
+          ],
+        },
+      }
+      data.data['source.1.body'] = {
+        value: body,
+        valid: true,
+        ...{ clipboardBlocks: [schema] },
+      }
+      const result = insertBlockFromClipboard({
+        blocksMap: { nested },
+        dataFromClipboard: data,
+        formState: destination(0),
+        path: 'target',
+        rowIndex: 0,
+      })
+      const value = result['target.0.body'].value as typeof body
+      expect(value.root.children[0].fields.id).not.toBe('old-inline')
+      expect(value.root.children[0].fields.nested[0].id).not.toBe('old-nested')
+      expect(value.root.children[0].fields.nested[0].reference.id).toBe('keep-reference')
+    },
+  )
 
   it('should preserve JSON and settings exactly when rich text has no structural nodes', () => {
     const data = copied()

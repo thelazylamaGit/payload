@@ -81,7 +81,8 @@ try {
     `
     import assert from 'node:assert/strict'
     import { en } from '@payloadcms/translations/languages/en'
-    import { getTranslation } from '@payloadcms/translations'
+    import { getTranslation, initI18n } from '@payloadcms/translations'
+    import { createClientField } from 'payload'
     import { reduceToSerializableFields } from '@payloadcms/ui/shared'
     assert.equal(en.translations.general.copyBlock, 'Copy Block')
     assert.equal(en.translations.general.pasteBlockBelow, 'Paste Block Below')
@@ -129,7 +130,40 @@ try {
     assert.equal('clipboardBlocks' in request.documentFormState.body, false)
     assert.deepEqual(request.formState.body.value, localState.body.value)
     assert.equal('clipboardBlocks' in localState.body, true)
-    console.log('Cold frozen-lockfile consumer, compiled exports, block insertion, and request sanitization passed')
+    const i18n = await initI18n({ config: { fallbackLanguage: 'en', supportedLanguages: { en } } })
+    for (const referenceList of ['blocks', 'blockReferences']) {
+      const nestedField = createClientField({ defaultIDType: 'number', importMap: {}, i18n,
+        field: { name: 'nested', type: 'blocks', blocks: [], [referenceList]: ['child'] },
+      })
+      const schema = { slug: 'panel', fields: [
+        { type: 'tabs', tabs: [{ label: 'Content', fields: [nestedField] }] },
+      ] }
+      const body = { root: { type: 'root', children: [{ type: 'block', fields: {
+        id: 'old-panel', blockType: 'panel', nested: [
+          { id: 'old-child', blockType: 'child', reference: { id: 'keep-document' } },
+        ],
+      } }] } }
+      const pasted = insertBlockFromClipboard({
+        blocksMap: { child: { slug: 'child', fields: [
+          { name: 'reference', type: 'relationship', relationTo: 'pages' },
+        ] } },
+        formState: current, path: 'layout', rowIndex: 1,
+        dataFromClipboard: { type: 'blocks', path: 'source', rowIndex: 0,
+          blocks: [{ slug: 'content', fields: [{ name: 'body', type: 'richText' }] }],
+          data: {
+            'source.0.id': { value: 'copied', valid: true },
+            'source.0.blockType': { value: 'content', valid: true },
+            'source.0.body': { value: body, valid: true, clipboardBlocks: [schema] },
+          },
+        },
+      })
+      const fields = pasted['layout.1.body'].value.root.children[0].fields
+      assert.notEqual(fields.id, 'old-panel')
+      assert.notEqual(fields.nested[0].id, 'old-child')
+      assert.equal(fields.nested[0].reference.id, 'keep-document')
+      assert.deepEqual(body.root.children[0].fields.nested[0].id, 'old-child')
+    }
+    console.log('Cold consumer, compiled exports, insertion, request sanitization, and native nested block references passed')
   `,
   )
   execFileSync('node', ['smoke.mjs'], { cwd: temp, stdio: 'inherit' })

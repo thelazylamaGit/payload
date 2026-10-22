@@ -14,7 +14,6 @@ import { fieldIsHiddenOrDisabled } from 'payload/shared'
 import type { RichTextClipboardMetadata } from '../../elements/ClipboardAction/types.js'
 import type { RenderFieldMethod } from './types.js'
 
-import { compactClipboardBlockSchema } from '../../elements/ClipboardAction/compactClipboardBlockSchema.js'
 import { RenderServerComponent } from '../../elements/RenderServerComponent/index.js'
 
 // eslint-disable-next-line payload/no-imports-from-exports-dir -- MUST reference the exports dir: https://github.com/payloadcms/payload/issues/12002#issuecomment-2791493587
@@ -265,7 +264,7 @@ export const renderField: RenderFieldMethod = ({
             importMap: req.payload.importMap,
           })
           if (clientSchema.type === 'blocks') {
-            clipboardBlocks.push(...clientSchema.blocks.map(compactClipboardBlockSchema))
+            clipboardBlocks.push(...(clientSchema.blocks ?? []))
           }
         }
       }
