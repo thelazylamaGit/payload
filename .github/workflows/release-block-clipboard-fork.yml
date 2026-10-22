@@ -1,0 +1,109 @@
+name: Release native block clipboard fork
+
+on:
+  push:
+    tags:
+      - 'block-clipboard-*-patches.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'New immutable tag, e.g. block-clipboard-3.91.0-patches.1'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: block-clipboard-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      NODE_OPTIONS: --max-old-space-size=6144
+      DO_NOT_TRACK: '1'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Validate new tag and aligned package versions
+        shell: bash
+        run: |
+          version=$(node -p "require('./packages/ui/package.json').version")
+          for package in translations richtext-lexical payload; do
+            test "$(node -p "require('./packages/$package/package.json').version")" = "$version"
+          done
+          prefix="block-clipboard-${version}-patches."
+          revision="${RELEASE_TAG#"$prefix"}"
+          if [[ "$RELEASE_TAG" != "$prefix"* || ! "$revision" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Expected ${prefix}<positive integer>"
+            exit 1
+          fi
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            test "$(git rev-parse "$RELEASE_TAG^{commit}")" = "$GITHUB_SHA"
+          fi
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists. Choose a new revision; assets are never replaced."
+            exit 1
+          fi
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
+        with:
+          run_install: false
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:ui
+      - name: Focused regression tests and lint
+        run: |
+          pnpm exec vitest run --project unit packages/ui/src/elements/ClipboardAction
+          pnpm exec eslint packages/ui/src/elements/ClipboardAction packages/ui/src/elements/ArrayAction/index.tsx packages/ui/src/fields/Blocks/index.tsx packages/ui/src/fields/Blocks/RowActions.tsx packages/ui/src/forms/fieldSchemasToFormState/renderField.tsx packages/translations/src/clientKeys.ts packages/translations/src/languages/*.ts
+      - name: Pack compiled UI and translations only
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          pnpm -C packages/ui pack --pack-destination "$GITHUB_WORKSPACE/artifacts"
+          pnpm -C packages/translations pack --pack-destination "$GITHUB_WORKSPACE/artifacts"
+          python3 scripts/fork-release/verify-block-clipboard-artifacts.py artifacts
+      - name: Cold external consumer with existing Lexical release
+        run: node scripts/fork-release/smoke-block-clipboard-consumer.mjs artifacts
+      - name: Checksums
+        working-directory: artifacts
+        run: sha256sum ./*.tgz > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: block-clipboard-release
+          path: artifacts/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: block-clipboard-release
+          path: artifacts
+      - name: Verify checksums and publish immutable release
+        shell: bash
+        run: |
+          (cd artifacts && sha256sum -c SHA256SUMS)
+          gh release create "$RELEASE_TAG" artifacts/*.tgz artifacts/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TAG" \
+            --notes "Compiled @payloadcms/ui and @payloadcms/translations for native block clipboard insertion. Keep the existing lexical-3.91.0-patches.6 override. See SHA256SUMS." \
+            --latest=false
