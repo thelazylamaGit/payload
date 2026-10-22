@@ -365,3 +365,6 @@ test/evals/eval-results/report.html
 test/evals/eval-results/runs/
 
 .pnpm-store
+
+# Local fork package checksums (tarballs are already ignored).
+/artifacts/SHA256SUMS

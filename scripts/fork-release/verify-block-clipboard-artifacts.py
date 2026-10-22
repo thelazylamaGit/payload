@@ -1,12 +1,18 @@
 """Check actual pnpm tarballs, including wildcard exports and runtime assets."""
+import argparse
 import glob
 import json
-import sys
 import tarfile
 from pathlib import PurePosixPath
 
-root = sys.argv[1] if len(sys.argv) > 1 else 'artifacts'
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('root', nargs='?', default='artifacts')
+parser.add_argument('--include-lexical', action='store_true')
+args = parser.parse_args()
+root = args.root
 expected = {'@payloadcms/ui', '@payloadcms/translations'}
+if args.include_lexical:
+    expected.add('@payloadcms/richtext-lexical')
 found = set()
 versions = set()
 for filename in glob.glob(f'{root}/*.tgz'):
@@ -41,7 +47,7 @@ for filename in glob.glob(f'{root}/*.tgz'):
             for path in ('dist/styles.css', 'dist/scss/styles.scss', 'dist/assets/index.js',
                          'dist/elements/ClipboardAction/insertBlockFromClipboard.js'):
                 assert 'package/' + path in files, path
-        else:
+        elif name == '@payloadcms/translations':
             english = archive.extractfile('package/dist/languages/en.js').read().decode()
             for label in ('Copy Block', 'Paste Block Below', 'Paste Block'):
                 assert label in english, label

@@ -16,11 +16,41 @@ English labels/messages live in the translations package and are registered as c
 
 The first release attached full embedded block schemas to rich-text form state. Native form updates and nested Lexical form requests inadvertently sent that client-only metadata back to the server. Repeated schemas could push otherwise small requests above Next.js's default 1 MB Server Action body limit, causing HTTP 413 errors and disrupting Admin rendering/live preview.
 
-The fix keeps compact structural schemas locally for clipboard ID regeneration and strips field-level `clipboardBlocks` metadata from outgoing form state, including parent-document state used by the existing Lexical fork. All document values, initial values, rich-text JSON, settings, row IDs, and external references are preserved. The server already resolves schemas from its configuration. Whole-field and selected-block compatibility checks still use their original schemas; compaction applies only to the additional metadata used for structural IDs.
+The fix keeps Payload’s native client schemas locally for clipboard ID regeneration and strips field-level `clipboardBlocks` metadata from outgoing form state, including parent-document state used by the existing Lexical fork. All document values, initial values, rich-text JSON, settings, row IDs, and external references are preserved. The server already resolves schemas from its configuration. Whole-field and selected-block compatibility checks still use their original schemas.
 
 A synthetic regression fixture measured 1,333,465 bytes of JSON before stripping and 2,725 bytes afterward, with unchanged field values. These are fixture measurements, not measurements of TheHealthLodge's HTTP requests. Actual document content and request encoding still count toward Next.js's body limit. This change does not impose a smaller copy limit or increase the application's Next.js body limit.
 
+Optional schema compaction has been removed. Rendering retains Payload's native client schemas without recursively rewriting them. Compiled-consumer regression checks use Payload's actual client-field conversion for references in either Blocks list, nested inside tabs, and verify fresh structural IDs while preserving external references.
+
 This requires a new UI artifact to reach consumers; the existing Lexical override can stay unchanged. Use a fresh release revision (for example `block-clipboard-3.91.0-patches.2` if unused) and update the two block-clipboard overrides/lockfile after publication. Do not overwrite the first release or its tag.
+
+## Building local tarballs
+
+From this fork checkout, after installing workspace dependencies:
+
+```sh
+pnpm fork:pack
+```
+
+This builds UI and its dependencies through Turbo, runs the focused regression tests, packs and verifies UI/translations in a temporary directory, and writes the verified tarballs into `artifacts/` with `SHA256SUMS`. It preserves existing Lexical tarballs and creates no tags or GitHub releases. Requires Node, pnpm, and Python 3. The package manifests keep their aligned Payload version (currently 3.91.0).
+
+Options:
+
+```sh
+pnpm fork:pack --lexical                    # Also rebuild/test/pack Lexical
+pnpm fork:pack --out-dir /tmp/payload-packs # Choose a destination
+pnpm fork:pack --help
+```
+
+For example, if the app and this fork are sibling directories, merge these entries into the app's existing overrides:
+
+```yaml
+overrides:
+  '@payloadcms/ui': 'file:../payload/artifacts/payloadcms-ui-3.91.0.tgz'
+  '@payloadcms/translations': 'file:../payload/artifacts/payloadcms-translations-3.91.0.tgz'
+```
+
+Keep the project's existing Lexical `file:` override. Reinstall dependencies in the consuming project and restart its dev server after rebuilding packages. For reproducible CI builds, local tarballs must be present at the committed paths before installation; a sibling checkout available only on your development machine will not be available in CI. Paths are examples; this script does not edit consuming projects.
 
 ## Triggering a release (after review)
 
@@ -119,7 +149,7 @@ This task does not edit TheHealthLodge, push commits/tags, or publish releases.
 
 - `pnpm build:ui`: passed, including dependency builds, declarations, React compilation, bundles, and styles.
 - UI `tsc --noEmit`: passed.
-- Focused clipboard regression suite: **62 passed** across seven test files, including the pre-existing clipboard tests.
+- Focused clipboard regression suite: **62 passed** across six test files, including the pre-existing clipboard tests.
 - Production-source lint: passed with no errors; five pre-existing warnings remain in Form and ServerFunctions. Unit test files are excluded by the repository ESLint/TypeScript configuration and were executed with Vitest. Formatting and `git diff --check`: passed.
 - Both final tarballs: verified contents, concrete/wildcard exports, UI assets, package alignment, and external dependency specifiers. Local `SHA256SUMS` generated.
 - Cold temporary consumer: passed frozen-lockfile installation with a new empty store, compiled exports, and execution of compiled block insertion against public `payload@3.91.0`, alongside the existing downloaded Lexical release. No replacement core package was used.
