@@ -2,6 +2,7 @@
 
 import type { LexicalEditor } from 'lexical'
 
+import { registerRichText } from '@lexical/rich-text'
 import { LexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import {
   $createNodeSelection,
@@ -13,6 +14,8 @@ import {
   $setSelection,
   CLICK_COMMAND,
   createEditor,
+  KEY_BACKSPACE_COMMAND,
+  KEY_DELETE_COMMAND,
   SELECTION_CHANGE_COMMAND,
   SKIP_DOM_SELECTION_TAG,
 } from 'lexical'
@@ -53,6 +56,7 @@ function createFixture({ parentEditor }: { parentEditor?: LexicalEditor } = {}) 
     },
     parentEditor,
   })
+  const unregisterRichText = registerRichText(editor)
   const host = document.createElement('div')
   const portalHost = document.createElement('div')
   document.body.append(host, portalHost)
@@ -73,7 +77,7 @@ function createFixture({ parentEditor }: { parentEditor?: LexicalEditor } = {}) 
           suppressContentEditableWarning: true,
         }),
         React.createElement(DecoratorPlugin),
-        React.createElement('input', { 'data-block-control': true }),
+        React.createElement('button', { 'data-block-control': true }, 'Edit block'),
         createPortal(React.createElement('input', { 'data-popover': true }), portalHost),
         children,
       ),
@@ -110,6 +114,7 @@ function createFixture({ parentEditor }: { parentEditor?: LexicalEditor } = {}) 
 
   cleanups.push(() => {
     unmount()
+    unregisterRichText()
     host.remove()
     portalHost.remove()
   })
@@ -148,9 +153,19 @@ function outsideElement(tag: 'button' | 'div' = 'button') {
   return element
 }
 
+async function focus(element: HTMLElement) {
+  await act(async () => {
+    element.focus()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+}
+
 async function pointerDown(element: Element) {
   const event = new Event('pointerdown', { bubbles: true, cancelable: true })
-  await act(async () => element.dispatchEvent(event))
+  await act(async () => {
+    element.dispatchEvent(event)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
   return event
 }
 
@@ -164,7 +179,7 @@ describe('DecoratorPlugin outside interaction', () => {
       expect(fixture.element(type).classList.contains('decorator-selected')).toBe(true)
       const outside = outsideElement()
       const event = await pointerDown(outside)
-      await act(async () => outside.focus())
+      await focus(outside)
       expect(fixture.selection()).toBeNull()
       expect(fixture.element(type).classList.contains('decorator-selected')).toBe(false)
       expect(document.activeElement).toBe(outside)
@@ -212,7 +227,7 @@ describe('DecoratorPlugin outside interaction', () => {
     ]
     for (const control of controls) {
       await pointerDown(control)
-      await act(async () => (control as HTMLElement).focus())
+      await focus(control as HTMLElement)
       expect($isNodeSelection(fixture.selection())).toBe(true)
       expect(fixture.element('block').classList.contains('decorator-selected')).toBe(true)
     }
@@ -225,9 +240,29 @@ describe('DecoratorPlugin outside interaction', () => {
     const control = outsideElement()
     control.setAttribute('data-lexical-toolbar-editor', fixture.editor.getKey())
     await pointerDown(control)
-    await act(async () => control.focus())
+    await focus(control)
     expect($isNodeSelection(fixture.selection())).toBe(true)
     expect(fixture.element('rule').classList.contains('decorator-selected')).toBe(true)
+  })
+
+  it('should wait for toolbar ownership recorded after the document capture microtask', async () => {
+    const fixture = createFixture()
+    await fixture.mount()
+    await fixture.select('block')
+    const control = outsideElement()
+    const event = new Event('pointerdown', { bubbles: true })
+
+    await act(async () => {
+      control.dispatchEvent(event)
+      await Promise.resolve()
+      getEditorInteractionHandlers(fixture.editor).onPointerDownCapture({
+        nativeEvent: event,
+      } as React.SyntheticEvent)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect($isNodeSelection(fixture.selection())).toBe(true)
+    expect(fixture.element('block').classList.contains('decorator-selected')).toBe(true)
   })
 
   it('should clear node selection when keyboard focus moves outside, including from a portal', async () => {
@@ -235,10 +270,10 @@ describe('DecoratorPlugin outside interaction', () => {
     await fixture.mount()
     await fixture.select('rule')
     const control = fixture.portalHost.querySelector<HTMLInputElement>('[data-popover]')!
-    await act(async () => control.focus())
+    await focus(control)
     expect($isNodeSelection(fixture.selection())).toBe(true)
     const outside = outsideElement()
-    await act(async () => outside.focus())
+    await focus(outside)
     expect(fixture.selection()).toBeNull()
     expect(fixture.element('rule').classList.contains('decorator-selected')).toBe(false)
     expect(document.activeElement).toBe(outside)
@@ -294,7 +329,31 @@ describe('DecoratorPlugin outside interaction', () => {
     expect(child.element('rule').classList.contains('decorator-selected')).toBe(true)
   })
 
-  it.each(['button', 'input', 'select'] as const)(
+  it.each([
+    ['Backspace', KEY_BACKSPACE_COMMAND],
+    ['Delete', KEY_DELETE_COMMAND],
+  ] as const)(
+    'should not delete a parent block when %s deletes a nested editor node',
+    async (key, command) => {
+      const parent = createFixture()
+      const child = createFixture({ parentEditor: parent.editor })
+      await parent.mount()
+      await child.mount()
+      await parent.select('block')
+      await child.select('rule')
+      const rule = child.element('rule')
+      const event = new KeyboardEvent('keydown', { cancelable: true, key })
+      Object.defineProperty(event, 'target', { value: child.editor.getRootElement() })
+
+      await act(async () => child.editor.dispatchCommand(command, event))
+
+      expect(rule.isConnected).toBe(false)
+      expect(parent.element('block').isConnected).toBe(true)
+      expect($isNodeSelection(parent.selection())).toBe(true)
+    },
+  )
+
+  it.each(['button', 'a'] as const)(
     'should preserve selection when an in-editor block %s receives CLICK_COMMAND',
     async (tag) => {
       const fixture = createFixture()
@@ -307,6 +366,170 @@ describe('DecoratorPlugin outside interaction', () => {
       await act(async () => fixture.editor.dispatchCommand(CLICK_COMMAND, click))
       expect($isNodeSelection(fixture.selection())).toBe(true)
       expect(fixture.element('block').classList.contains('decorator-selected')).toBe(true)
+    },
+  )
+
+  it.each(['input', 'textarea', 'select'] as const)(
+    'should clear block selection when its %s receives CLICK_COMMAND',
+    async (tag) => {
+      const fixture = createFixture()
+      await fixture.mount()
+      await fixture.select('block')
+      const field = document.createElement(tag)
+      fixture.element('block').append(field)
+      const click = new MouseEvent('click', { bubbles: true })
+      Object.defineProperty(click, 'target', { value: field })
+
+      await act(async () => fixture.editor.dispatchCommand(CLICK_COMMAND, click))
+
+      expect(fixture.selection()).toBeNull()
+      expect(fixture.element('block').classList.contains('decorator-selected')).toBe(false)
+    },
+  )
+
+  it.each(['input', 'textarea', 'select'] as const)(
+    'should clear the outline on pointer interaction with a block %s without stealing focus',
+    async (tag) => {
+      const fixture = createFixture()
+      await fixture.mount()
+      await fixture.select('block')
+      const field = document.createElement(tag)
+      fixture.element('block').append(field)
+
+      const event = await pointerDown(field)
+      await focus(field)
+
+      expect(fixture.selection()).toBeNull()
+      expect(fixture.element('block').classList.contains('decorator-selected')).toBe(false)
+      expect(document.activeElement).toBe(field)
+      expect(event.defaultPrevented).toBe(false)
+    },
+  )
+
+  it('should clear block selection when keyboard focus enters a field without a pointer event', async () => {
+    const fixture = createFixture()
+    await fixture.mount()
+    await fixture.select('block')
+    const field = document.createElement('input')
+    fixture.element('block').append(field)
+    field.value = 'editable'
+    field.setSelectionRange(3, 3)
+
+    await focus(field)
+
+    expect(fixture.selection()).toBeNull()
+    expect(fixture.element('block').classList.contains('decorator-selected')).toBe(false)
+    expect(document.activeElement).toBe(field)
+    expect(field.selectionStart).toBe(3)
+  })
+
+  it('should clear the enclosing block selection when a nested editor receives focus', async () => {
+    const parent = createFixture()
+    const child = createFixture({ parentEditor: parent.editor })
+    await parent.mount()
+    await act(async () => parent.render(createPortal(child.surface, parent.element('block'))))
+    await child.populate()
+    await parent.select('block')
+
+    await focus(child.editor.getRootElement()!)
+
+    expect(parent.selection()).toBeNull()
+    expect(parent.element('block').classList.contains('decorator-selected')).toBe(false)
+    expect(document.activeElement).toBe(child.editor.getRootElement())
+  })
+
+  it.each(['input', 'textarea'] as const)(
+    'should not delete a stale selected block while editing a %s',
+    async (tag) => {
+      const fixture = createFixture()
+      await fixture.mount()
+      const field = document.createElement(tag)
+      fixture.element('block').append(field)
+      field.value = 'text'
+      await focus(field)
+
+      for (const [key, command] of [
+        ['Backspace', KEY_BACKSPACE_COMMAND],
+        ['Delete', KEY_DELETE_COMMAND],
+      ] as const) {
+        await fixture.select('block')
+        const event = new KeyboardEvent('keydown', { cancelable: true, key })
+        Object.defineProperty(event, 'target', { value: field })
+        let handled = true
+
+        await act(async () => {
+          handled = fixture.editor.dispatchCommand(command, event)
+        })
+
+        expect(handled).toBe(true)
+        expect(event.defaultPrevented).toBe(false)
+        expect(fixture.element('block').isConnected).toBe(true)
+        expect(field.value).toBe('text')
+      }
+    },
+  )
+
+  it.each([
+    ['Backspace', KEY_BACKSPACE_COMMAND],
+    ['Delete', KEY_DELETE_COMMAND],
+  ] as const)(
+    'should protect an empty focused field from %s even if the command target is the canvas',
+    async (key, command) => {
+      const fixture = createFixture()
+      await fixture.mount()
+      const field = document.createElement('input')
+      fixture.element('block').append(field)
+      await focus(field)
+      await fixture.select('block')
+      const event = new KeyboardEvent('keydown', { cancelable: true, key })
+      Object.defineProperty(event, 'target', { value: fixture.editor.getRootElement() })
+
+      await act(async () => fixture.editor.dispatchCommand(command, event))
+
+      expect(event.defaultPrevented).toBe(false)
+      expect(fixture.element('block').isConnected).toBe(true)
+      expect(fixture.selection()).toBeNull()
+      expect(document.activeElement).toBe(field)
+    },
+  )
+
+  it('should preserve a toolbar popover selection while allowing its input to handle Backspace', async () => {
+    const fixture = createFixture()
+    await fixture.mount()
+    const field = fixture.portalHost.querySelector<HTMLInputElement>('[data-popover]')!
+    await focus(field)
+    await fixture.select('block')
+    const event = new KeyboardEvent('keydown', { cancelable: true, key: 'Backspace' })
+    Object.defineProperty(event, 'target', { value: field })
+
+    await act(async () => fixture.editor.dispatchCommand(KEY_BACKSPACE_COMMAND, event))
+
+    expect(event.defaultPrevented).toBe(false)
+    expect($isNodeSelection(fixture.selection())).toBe(true)
+    expect(fixture.element('block').isConnected).toBe(true)
+  })
+
+  it.each([
+    ['Backspace', KEY_BACKSPACE_COMMAND],
+    ['Delete', KEY_DELETE_COMMAND],
+  ] as const)(
+    'should allow %s to delete a deliberately selected block on the editor canvas',
+    async (key, command) => {
+      const fixture = createFixture()
+      await fixture.mount()
+      await fixture.select('block')
+      const block = fixture.element('block')
+      const event = new KeyboardEvent('keydown', { cancelable: true, key })
+      Object.defineProperty(event, 'target', { value: fixture.editor.getRootElement() })
+      let handled = false
+
+      await act(async () => {
+        handled = fixture.editor.dispatchCommand(command, event)
+      })
+
+      expect(handled).toBe(true)
+      expect(event.defaultPrevented).toBe(true)
+      expect(block.isConnected).toBe(false)
     },
   )
 
@@ -335,7 +558,7 @@ describe('DecoratorPlugin outside interaction', () => {
     const fixture = createFixture()
     await fixture.mount()
     const control = fixture.portalHost.querySelector<HTMLInputElement>('[data-popover]')!
-    await act(async () => control.focus())
+    await focus(control)
     await fixture.select('rule')
     await act(async () => {
       control.blur()
@@ -354,9 +577,7 @@ describe('DecoratorPlugin outside interaction', () => {
     await parent.select('block')
     await child.select('rule')
     await pointerDown(child.portalHost.querySelector('[data-dropdown]')!)
-    await act(async () =>
-      child.portalHost.querySelector<HTMLInputElement>('[data-popover]')!.focus(),
-    )
+    await focus(child.portalHost.querySelector<HTMLInputElement>('[data-popover]')!)
     expect($isNodeSelection(parent.selection())).toBe(true)
     expect($isNodeSelection(child.selection())).toBe(true)
     expect(parent.element('block').classList.contains('decorator-selected')).toBe(true)

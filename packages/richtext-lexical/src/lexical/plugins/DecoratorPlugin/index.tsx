@@ -5,6 +5,7 @@ import type { DecoratorNode, ElementNode, LexicalEditor, LexicalNode } from 'lex
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $findMatchingParent, mergeRegister } from '@lexical/utils'
 import {
+  $addUpdateTag,
   $createNodeSelection,
   $getEditor,
   $getNearestNodeFromDOMNode,
@@ -44,6 +45,22 @@ export function DecoratorPlugin() {
       const selection = $getSelection()
       if (!$isNodeSelection(selection)) {
         return false
+      }
+      const activeElement = editor.getRootElement()?.ownerDocument.activeElement
+
+      if (isEditingControl(editor, event.target) || isEditingControl(editor, activeElement)) {
+        if (
+          isEditingDecoratorContent(editor, event.target) ||
+          isEditingDecoratorContent(editor, activeElement ?? null)
+        ) {
+          $setSelection(null)
+          $addUpdateTag(SKIP_DOM_SELECTION_TAG)
+        }
+        // Stop lower-priority editor deletion handlers without cancelling native field editing.
+        return true
+      }
+      if (event.defaultPrevented) {
+        return true
       }
       event.preventDefault()
       selection.getNodes().forEach((node) => {
@@ -119,7 +136,11 @@ export function DecoratorPlugin() {
             target.closest(
               'a, button, select, textarea, input, .react-select, .code-editor, .no-select-decorator, [role="button"]',
             )
-          if (!isInteractive) {
+          if (isEditingDecoratorContent(editor, target)) {
+            if ($isNodeSelection($getSelection())) {
+              $setSelection(null)
+            }
+          } else if (!isInteractive) {
             $selectDecorator(decorator)
           }
           return true
@@ -283,14 +304,20 @@ function registerOutsideInteractions({
     let isActive = true
     let lastFocusEvent: FocusEvent | null = null
     let blurTimeout: ReturnType<typeof setTimeout> | undefined
+    const pendingInteractions = new Set<ReturnType<typeof setTimeout>>()
 
     const onInteraction = (event: Event) => {
       if (!hasNodeSelection()) {
         return
       }
-      // Wait for React capture handlers to identify portaled controls, even if
-      // a descendant stops propagation before the event reaches document again.
-      queueMicrotask(() => {
+      if (isEditingDecoratorContent(editor, event.target)) {
+        clearNodeSelection()
+        return
+      }
+      // Wait for the complete dispatch: browsers can flush microtasks between
+      // document capture and the React capture handlers that identify portals.
+      const timeout = setTimeout(() => {
+        pendingInteractions.delete(timeout)
         if (!isActive) {
           return
         }
@@ -300,7 +327,8 @@ function registerOutsideInteractions({
         if (!isEditorInteraction(editor, event)) {
           clearNodeSelection()
         }
-      })
+      }, 0)
+      pendingInteractions.add(timeout)
     }
 
     const onFocusOut = (event: FocusEvent) => {
@@ -329,6 +357,7 @@ function registerOutsideInteractions({
     removeRootListeners = () => {
       isActive = false
       clearTimeout(blurTimeout)
+      pendingInteractions.forEach(clearTimeout)
       ownerDocument.removeEventListener('pointerdown', onInteraction, true)
       ownerDocument.removeEventListener('focusin', onInteraction, true)
       ownerDocument.removeEventListener('focusout', onFocusOut, true)
@@ -339,6 +368,30 @@ function registerOutsideInteractions({
     removeRootListener()
     removeRootListeners()
   }
+}
+
+/** Editing controls own their keystrokes even if the outer editor has a stale node selection. */
+function isEditingControl(editor: LexicalEditor, target: EventTarget | null | undefined): boolean {
+  if (!(target instanceof HTMLElement)) {
+    return false
+  }
+
+  const control = target.closest(
+    'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"], [role="combobox"], .react-select, .code-editor',
+  )
+
+  return Boolean(control && control !== editor.getRootElement())
+}
+
+function isEditingDecoratorContent(editor: LexicalEditor, target: EventTarget | null): boolean {
+  if (!isEditingControl(editor, target) || !(target instanceof HTMLElement)) {
+    return false
+  }
+
+  const root = editor.getRootElement()
+  const decorator = target.closest('[data-lexical-decorator="true"]')
+
+  return Boolean(decorator && root?.contains(decorator) && root.contains(target))
 }
 
 function $getDecoratorByMouseEvent(
