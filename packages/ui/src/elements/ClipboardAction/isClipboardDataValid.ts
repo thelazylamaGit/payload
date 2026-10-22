@@ -11,14 +11,32 @@ import type { ClipboardPasteActionValidateArgs } from './types.js'
  *
  * @returns True if the clipboard data is valid and can be pasted, false otherwise
  */
-export function isClipboardDataValid({ data, path, ...args }: ClipboardPasteActionValidateArgs) {
+export function isClipboardDataValid({
+  data,
+  path,
+  rowIndex,
+  ...args
+}: ClipboardPasteActionValidateArgs) {
   if (typeof data === 'undefined' || !path || !args.type) {
     return false
   }
 
   if (args.type === 'blocks') {
+    let blocksFromClipboard = args.blocks
+
+    if (typeof rowIndex === 'number') {
+      const blockType = data?.[`${path}.${rowIndex}.blockType`]?.value
+      const selectedBlock = args.blocks?.find((block) => block.slug === blockType)
+
+      if (!selectedBlock) {
+        return false
+      }
+
+      blocksFromClipboard = [selectedBlock]
+    }
+
     return isClipboardBlocksValid({
-      blocksFromClipboard: args.blocks,
+      blocksFromClipboard,
       blocksFromConfig: args.schemaBlocks,
     })
   } else {

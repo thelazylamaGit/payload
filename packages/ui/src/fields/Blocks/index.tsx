@@ -241,7 +241,9 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
     (rowIndex: number) => {
       const clipboardResult = clipboardCopy({
         type,
-        blocks: clientBlocks,
+        blocks: clientBlocks.filter(
+          (block) => block.slug === getFields()[`${path}.${rowIndex}.blockType`]?.value,
+        ),
         getDataToCopy: () =>
           reduceFormStateByPath({
             formState: { ...getFields() },
