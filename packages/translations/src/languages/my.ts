@@ -98,6 +98,9 @@ export const myTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'ဤအကောင့်ကို အသက်သွင်းပြီးဖြစ်သည်။',
     autosaving: 'ဖိုင်ကို အလိုအလျောက်သိမ်းဆည်းရာတွင် ပြဿနာတစ်ခုရှိနေသည်။',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'ကျေးဇူးပြု၍ အချက်အလက်များကို ပြန်လည် စစ်ဆေးပါ။',
     deletingFile: 'ဖိုင်ကိုဖျက်ရာတွင် အမှားအယွင်းရှိနေသည်။',
     deletingTitle:
@@ -287,6 +290,7 @@ export const myTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'ပြန်လည်ရယူမှုကို အတည်ပြုပါ',
     copied: 'ကူးယူပြီးပြီ။',
     copy: 'ကူးယူမည်။',
+    copyBlock: 'Copy Block',
     copyField: 'ကွက်လပ်ကိုကူးပါ',
     copying: 'ကူးယူခြင်း',
     copyRow: 'တန်းကိုကူးပါ',
@@ -403,6 +407,8 @@ export const myTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'ရှိပြီးသား အကွက်ဒေတာကို အစားထိုးပါ',
     pageNotFound: 'ရောက်ရှိနေသော စာမျက်နှာသည် မရှိပါ။',
     password: 'စကားဝှက်',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'ကွက်လပ်ကိုတင်ပါ',
     pasteRow: 'တန်းကိုတင်ပါ',
     payloadSettings: 'ရွေးချယ်စရာများ',

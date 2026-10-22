@@ -93,6 +93,9 @@ export const zhTwTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: '此帳戶已啟用。',
     autosaving: '自動儲存文件時發生問題。',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: '請修正無效欄位。',
     deletingFile: '刪除檔案時發生錯誤。',
     deletingTitle: '刪除 {{title}} 時發生錯誤。請檢查網路連線後再試一次。',
@@ -266,6 +269,7 @@ export const zhTwTranslations: DefaultTranslationsObject = {
     confirmRestoration: '確認還原',
     copied: '已複製',
     copy: '複製',
+    copyBlock: 'Copy Block',
     copyField: '複製欄位',
     copying: '複製中',
     copyRow: '複製列',
@@ -377,6 +381,8 @@ export const zhTwTranslations: DefaultTranslationsObject = {
     overwriteExistingData: '覆寫現有欄位資料',
     pageNotFound: '找不到此頁面',
     password: '密碼',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: '貼上欄位',
     pasteRow: '貼上列',
     payloadSettings: 'Payload 設定',

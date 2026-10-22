@@ -100,6 +100,9 @@ export const roTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Acest cont a fost deja activat.',
     autosaving: 'A existat o problemă în timpul salvării automate a acestui document.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Vă rugăm să corectați datele invalide.',
     deletingFile: 'S-a produs o eroare la ștergerea fișierului.',
     deletingTitle:
@@ -289,6 +292,7 @@ export const roTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Confirmă restaurarea',
     copied: 'Copiat',
     copy: 'Copiați',
+    copyBlock: 'Copy Block',
     copyField: 'Copiază câmpul',
     copying: 'Copiere',
     copyRow: 'Copiază rândul',
@@ -405,6 +409,8 @@ export const roTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Suprascrieți datele existente din câmp',
     pageNotFound: 'Pagina nu a fost găsită',
     password: 'Parola',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Lipește câmpul',
     pasteRow: 'Lipește rândul',
     payloadSettings: 'Setări de Payload',

@@ -6,6 +6,7 @@ import React from 'react'
 
 import { ArrayAction } from '../../elements/ArrayAction/index.js'
 import { useDrawerSlug } from '../../elements/Drawer/useDrawerSlug.js'
+import { useTranslation } from '../../providers/Translation/index.js'
 import { BlocksDrawer } from './BlocksDrawer/index.js'
 
 export const RowActions: React.FC<{
@@ -40,6 +41,7 @@ export const RowActions: React.FC<{
     rowIndex,
   } = props
 
+  const { t } = useTranslation()
   const { closeModal, openModal } = useModal()
   const drawerSlug = useDrawerSlug('blocks-drawer')
 
@@ -64,12 +66,15 @@ export const RowActions: React.FC<{
           setIndexToAdd(index)
           openModal(drawerSlug)
         }}
+        copyLabel={t('general:copyBlock')}
         copyRow={copyRow}
         duplicateRow={() => duplicateRow(rowIndex, blockType)}
         hasMaxRows={hasMaxRows}
         index={rowIndex}
+        isPasteDisabled={hasMaxRows}
         isSortable={isSortable}
         moveRow={moveRow}
+        pasteLabel={t('general:pasteBlockBelow')}
         pasteRow={pasteRow}
         removeRow={removeRow}
         rowCount={rowCount}

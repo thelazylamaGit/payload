@@ -99,6 +99,9 @@ export const trTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Hesap zaten etkinleştirildi.',
     autosaving: 'Otomatik kaydetme başarısız oldu',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Lütfen geçersiz alanları düzeltin.',
     deletingFile: 'Dosya silinirken bir hatayla karşılaşıldı.',
     deletingTitle:
@@ -287,6 +290,7 @@ export const trTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Onarımı onaylayın',
     copied: 'Kopyalandı',
     copy: 'Kopyala',
+    copyBlock: 'Copy Block',
     copyField: 'Alanı kopyala',
     copying: 'Kopyalama',
     copyRow: 'Satırı kopyala',
@@ -403,6 +407,8 @@ export const trTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Mevcut alan verilerinin üzerine yazın',
     pageNotFound: 'Sayfa bulunamadı',
     password: 'Parola',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Alanı yapıştır',
     pasteRow: 'Satırı yapıştır',
     payloadSettings: 'Ayarlar',

@@ -98,6 +98,9 @@ export const nbTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Denne kontoen er allerede aktivert.',
     autosaving: 'Det oppstod et problem under automatisk lagring av dokumentet.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Korriger ugyldige felt.',
     deletingFile: 'Det oppstod en feil under sletting av filen.',
     deletingTitle:
@@ -284,6 +287,7 @@ export const nbTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Bekreft gjenoppretting',
     copied: 'Kopiert',
     copy: 'Kopier',
+    copyBlock: 'Copy Block',
     copyField: 'Kopier felt',
     copying: 'Kopierer',
     copyRow: 'Kopier rad',
@@ -400,6 +404,8 @@ export const nbTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Overskriv eksisterende feltdata',
     pageNotFound: 'Siden ble ikke funnet',
     password: 'Passord',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Lim inn felt',
     pasteRow: 'Lim inn rad',
     payloadSettings: 'Payload-innstillinger',

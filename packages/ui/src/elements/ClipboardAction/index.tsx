@@ -22,8 +22,10 @@ type Props = {
   copyClassName?: string
   disabled?: boolean
   getDataToCopy: () => FormStateWithoutComponents
+  isPasteBlockDisabled?: boolean
   isRow?: boolean
   onPaste: OnPasteFn
+  onPasteBlock?: () => void
   pasteClassName?: string
 } & ClipboardCopyData
 
@@ -37,8 +39,10 @@ export const ClipboardAction: FC<Props> = ({
   className,
   copyClassName,
   disabled,
+  isPasteBlockDisabled,
   isRow,
   onPaste,
+  onPasteBlock,
   pasteClassName,
   path,
   ...rest
@@ -115,6 +119,17 @@ export const ClipboardAction: FC<Props> = ({
           >
             <ClipboardActionLabel isPaste isRow={isRow} />
           </PopupList.Button>
+          {onPasteBlock && (
+            <PopupList.Button
+              disabled={!allowPaste || isPasteBlockDisabled}
+              onClick={() => {
+                onPasteBlock()
+                close()
+              }}
+            >
+              <ClipboardActionLabel isPaste label={t('general:pasteBlock')} />
+            </PopupList.Button>
+          )}
         </PopupList.ButtonGroup>
       )}
       size="large"

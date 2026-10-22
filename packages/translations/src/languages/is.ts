@@ -99,6 +99,9 @@ export const isTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Þessi aðgangur hefur þegar verið virkjaður.',
     autosaving: 'Villa kom upp við sjálfvirka vistun á færslu.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Vinsamlega leiðréttu rangt skráða reiti.',
     deletingFile: 'Villa kom upp við að eyða skrá.',
     deletingTitle:
@@ -283,6 +286,7 @@ export const isTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Staðfesta endurheimtu',
     copied: 'Afritað',
     copy: 'Afrita',
+    copyBlock: 'Copy Block',
     copyField: 'Afrita svæði',
     copying: 'Afrita',
     copyRow: 'Afrita röð',
@@ -396,6 +400,8 @@ export const isTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Yfirskrifa skráð gögn í reit',
     pageNotFound: 'Síða fannst ekki',
     password: 'Lykilorð',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Líma svæði',
     pasteRow: 'Líma röð',
     payloadSettings: 'Payload stillingar',

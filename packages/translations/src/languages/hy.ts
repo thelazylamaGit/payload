@@ -96,6 +96,9 @@ export const hyTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Այս հաշիվն արդեն ակտիվացված է։',
     autosaving: 'Այս փաստաթղթի ավտոմատ պահպանման ժամանակ խնդիր է առաջացել։',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Խնդրում ենք ուղղել անվավեր դաշտերը։',
     deletingFile: 'Ֆայլը ջնջելու ժամանակ սխալ է տեղի ունեցել։',
     deletingTitle:
@@ -283,6 +286,7 @@ export const hyTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Հաստատեք վերականգնումը',
     copied: 'Պատճենված',
     copy: 'Պատճենել',
+    copyBlock: 'Copy Block',
     copyField: 'Պատճենել դաշտը',
     copying: 'Պատճենվում է',
     copyRow: 'Պատճենել տողը',
@@ -399,6 +403,8 @@ export const hyTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Վերագրել գոյություն ունեցող դաշտի տվյալները',
     pageNotFound: 'Էջը չի գտնվել',
     password: 'Գաղտնաբառ',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Տեղադրել դաշտը',
     pasteRow: 'Տեղադրել տողը',
     payloadSettings: 'Payload-ի կարգավորումներ',

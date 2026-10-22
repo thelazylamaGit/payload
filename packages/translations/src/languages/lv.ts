@@ -98,6 +98,9 @@ export const lvTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Šis konts jau ir aktivizēts.',
     autosaving: 'Radās problēma, automātiski saglabājot šo dokumentu.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Lūdzu, izlabojiet nederīgos laukus.',
     deletingFile: 'Radās kļūda, dzēšot failu.',
     deletingTitle:
@@ -285,6 +288,7 @@ export const lvTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Apstipriniet atjaunošanu',
     copied: 'Nokopēts',
     copy: 'Kopēt',
+    copyBlock: 'Copy Block',
     copyField: 'Kopēt lauku',
     copying: 'Kopē...',
     copyRow: 'Kopēt rindu',
@@ -401,6 +405,8 @@ export const lvTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Pārrakstīt esošos datus',
     pageNotFound: 'Lapa nav atrasta',
     password: 'Parole',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Ielīmēt lauku',
     pasteRow: 'Ielīmēt rindu',
     payloadSettings: 'Payload iestatījumi',

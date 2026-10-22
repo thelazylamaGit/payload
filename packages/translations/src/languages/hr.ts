@@ -99,6 +99,9 @@ export const hrTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Ovaj račun je već aktiviran.',
     autosaving: 'Nastao je problem pri automatskom spremanju ovog dokumenta.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Molimo ispravite neispravna polja.',
     deletingFile: 'Dogodila se pogreška pri brisanju datoteke.',
     deletingTitle:
@@ -284,6 +287,7 @@ export const hrTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Potvrdite obnovu',
     copied: 'Kopirano',
     copy: 'Kopiraj',
+    copyBlock: 'Copy Block',
     copyField: 'Kopiraj polje',
     copying: 'Kopiranje',
     copyRow: 'Kopiraj redak',
@@ -399,6 +403,8 @@ export const hrTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Prepišite postojeće podatke u polju',
     pageNotFound: 'Stranica nije pronađena',
     password: 'Lozinka',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Zalijepi polje',
     pasteRow: 'Zalijepi redak',
     payloadSettings: 'Payload postavke',

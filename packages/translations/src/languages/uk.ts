@@ -99,6 +99,9 @@ export const ukTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Цей обліковий запис вже активований',
     autosaving: 'Виникла проблема під час автозбереження цього документа.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Будь ласка, виправте невірні поля.',
     deletingFile: 'Виникла помилка під час видалення файлу',
     deletingTitle:
@@ -284,6 +287,7 @@ export const ukTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Підтвердіть відновлення',
     copied: 'Скопійовано',
     copy: 'Скопіювати',
+    copyBlock: 'Copy Block',
     copyField: 'Копіювати поле',
     copying: 'Копіювання',
     copyRow: 'Копіювати рядок',
@@ -398,6 +402,8 @@ export const ukTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Перезаписати існуючі дані поля',
     pageNotFound: 'Сторінка не знайдена',
     password: 'Пароль',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Вставити поле',
     pasteRow: 'Вставити рядок',
     payloadSettings: 'Налаштування Payload',

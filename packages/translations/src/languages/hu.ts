@@ -100,6 +100,9 @@ export const huTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Ez a fiók már aktiválva van.',
     autosaving: 'Hiba történt a dokumentum automatikus mentése közben.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Kérjük, javítsa ki az érvénytelen mezőket.',
     deletingFile: 'Hiba történt a fájl törlésekor.',
     deletingTitle:
@@ -288,6 +291,7 @@ export const huTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Megerősíti a helyreállítást?',
     copied: 'Másolva',
     copy: 'Másolás',
+    copyBlock: 'Copy Block',
     copyField: 'Mező másolása',
     copying: 'Másolás',
     copyRow: 'Sor másolása',
@@ -403,6 +407,8 @@ export const huTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Írja felül a meglévő mezőadatokat',
     pageNotFound: 'Az oldal nem található',
     password: 'Jelszó',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Mező beillesztése',
     pasteRow: 'Sor beillesztése',
     payloadSettings: 'Payload beállítások',

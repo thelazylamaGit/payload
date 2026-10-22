@@ -98,6 +98,9 @@ export const caTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Aquest compte ja ha estat activat.',
     autosaving: "Hi ha hagut un problema mentre s'estava desant automàticament aquest document.",
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Si us plau, corregeix els camps no vàlids.',
     deletingFile: "Hi ha hagut un error en eliminar l'arxiu.",
     deletingTitle:
@@ -285,6 +288,7 @@ export const caTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Confirmeu la restauració',
     copied: 'Copiat',
     copy: 'Copiar',
+    copyBlock: 'Copy Block',
     copyField: 'Copiar camp',
     copying: 'Copiant',
     copyRow: 'Copiar fila',
@@ -401,6 +405,8 @@ export const caTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Sobreescriu les dades existents',
     pageNotFound: 'Pàgina no trobada',
     password: 'Contrasenya',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Enganxar camp',
     pasteRow: 'Enganxar fila',
     payloadSettings: 'configuracio Payload',

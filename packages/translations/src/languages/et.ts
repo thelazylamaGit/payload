@@ -97,6 +97,9 @@ export const etTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'See konto on juba aktiveeritud.',
     autosaving: 'Dokumendi automaatsel salvestamisel tekkis probleem.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Palun paranda vigased väljad.',
     deletingFile: 'Faili kustutamisel tekkis viga.',
     deletingTitle:
@@ -282,6 +285,7 @@ export const etTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Kinnita taastamine',
     copied: 'Kopeeritud',
     copy: 'Kopeeri',
+    copyBlock: 'Copy Block',
     copyField: 'Kopeeri väli',
     copying: 'Kopeerimine',
     copyRow: 'Kopeeri rida',
@@ -396,6 +400,8 @@ export const etTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Kirjuta olemasolevad välja andmed üle',
     pageNotFound: 'Lehte ei leitud',
     password: 'Parool',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Kleebi väli',
     pasteRow: 'Kleebi rida',
     payloadSettings: 'Payload seaded',

@@ -9,9 +9,11 @@ import { useTranslation } from '../../providers/Translation/index.js'
 export const ClipboardActionLabel = ({
   isPaste,
   isRow,
+  label: labelOverride,
 }: {
   isPaste?: boolean
   isRow?: boolean
+  label?: string
 }) => {
   const { t } = useTranslation()
 
@@ -26,7 +28,7 @@ export const ClipboardActionLabel = ({
 
   return (
     <Fragment>
-      {isPaste ? <EditIcon /> : <CopyIcon />} {label}
+      {isPaste ? <EditIcon /> : <CopyIcon />} {labelOverride ?? label}
     </Fragment>
   )
 }

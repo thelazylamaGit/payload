@@ -99,6 +99,9 @@ export const enTranslations = {
   error: {
     accountAlreadyActivated: 'This account has already been activated.',
     autosaving: 'There was a problem while autosaving this document.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Please correct invalid fields.',
     deletingFile: 'There was an error deleting file.',
     deletingTitle:
@@ -285,6 +288,7 @@ export const enTranslations = {
     confirmRestoration: 'Confirm restoration',
     copied: 'Copied',
     copy: 'Copy',
+    copyBlock: 'Copy Block',
     copyField: 'Copy Field',
     copying: 'Copying',
     copyRow: 'Copy Row',
@@ -400,6 +404,8 @@ export const enTranslations = {
     overwriteExistingData: 'Overwrite existing field data',
     pageNotFound: 'Page not found',
     password: 'Password',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Paste Field',
     pasteRow: 'Paste Row',
     payloadSettings: 'Payload Settings',

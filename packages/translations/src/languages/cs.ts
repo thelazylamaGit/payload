@@ -98,6 +98,9 @@ export const csTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Tento účet již byl aktivován.',
     autosaving: 'Při automatickém ukládání tohoto dokumentu došlo k chybě.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Opravte neplatná pole.',
     deletingFile: 'Při mazání souboru došlo k chybě.',
     deletingTitle:
@@ -283,6 +286,7 @@ export const csTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Potvrdit obnovení',
     copied: 'Zkopírováno',
     copy: 'Kopírovat',
+    copyBlock: 'Copy Block',
     copyField: 'Kopírovat pole',
     copying: 'Kopírování',
     copyRow: 'Kopírovat řádek',
@@ -398,6 +402,8 @@ export const csTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Přepsat existující data pole',
     pageNotFound: 'Stránka nenalezena',
     password: 'Heslo',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Vložit pole',
     pasteRow: 'Vložit řádek',
     payloadSettings: 'Payload nastavení',

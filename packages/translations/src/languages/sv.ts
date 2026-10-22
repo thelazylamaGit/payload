@@ -98,6 +98,9 @@ export const svTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Detta konto har redan aktiverats',
     autosaving: 'Det uppstod ett problem när det här dokumentet skulle sparas automatiskt.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Vänligen korrigera ogiltiga fält',
     deletingFile: 'Det gick inte att ta bort filen',
     deletingTitle:
@@ -284,6 +287,7 @@ export const svTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Bekräfta återställning',
     copied: 'Kopierad',
     copy: 'Kopiera',
+    copyBlock: 'Copy Block',
     copyField: 'Kopiera fält',
     copying: 'Kopierar...',
     copyRow: 'Kopiera rad',
@@ -400,6 +404,8 @@ export const svTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Skriv över befintlig fältdata',
     pageNotFound: 'Sidan hittas inte',
     password: 'Lösenord',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Klistra in fält',
     pasteRow: 'Klistra in rad',
     payloadSettings: 'Systeminställningar',

@@ -96,6 +96,9 @@ export const heTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'חשבון זה כבר הופעל.',
     autosaving: 'אירעה בעיה בזמן שמירה אוטומטית של מסמך זה.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'נא לתקן שדות לא תקינים.',
     deletingFile: 'אירעה שגיאה במחיקת הקובץ.',
     deletingTitle: 'אירעה שגיאה במחיקת {{title}}. נא בדוק את החיבור שלך ונסה שנית.',
@@ -273,6 +276,7 @@ export const heTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'אשר שחזור',
     copied: 'הועתק',
     copy: 'העתק',
+    copyBlock: 'Copy Block',
     copyField: 'העתק שדה',
     copying: 'העתקה',
     copyRow: 'העתק שורה',
@@ -385,6 +389,8 @@ export const heTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'דרוס את נתוני השדה הקיימים',
     pageNotFound: 'הדף לא נמצא',
     password: 'סיסמה',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'הדבק שדה',
     pasteRow: 'הדבק שורה',
     payloadSettings: 'הגדרות מערכת Payload',

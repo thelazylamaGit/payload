@@ -97,6 +97,9 @@ export const faTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'این حساب کاربری قبلاً فعال شده است.',
     autosaving: 'هنگام ذخیره خودکار این صفحه، خطایی رخ داد.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'لطفاً فیلدهای نامعتبر را اصلاح کنید.',
     deletingFile: 'هنگام حذف این فایل خطایی رخ داد.',
     deletingTitle: 'در حذف "{{title}}" خطایی رخ داد. لطفاً اتصال اینترنت خود را بررسی کنید.',
@@ -277,6 +280,7 @@ export const faTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'تأیید بازیابی',
     copied: 'کپی شد',
     copy: 'کپی',
+    copyBlock: 'Copy Block',
     copyField: 'کپی کردن فیلد',
     copying: 'در حال کپی...',
     copyRow: 'کپی کردن ردیف',
@@ -391,6 +395,8 @@ export const faTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'بازنویسی اطلاعات موجود در فیلدها',
     pageNotFound: 'صفحه پیدا نشد',
     password: 'رمز عبور',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'جای‌گذاری در فیلد',
     pasteRow: 'جای‌گذاری در ردیف',
     payloadSettings: 'تنظیمات Payload',

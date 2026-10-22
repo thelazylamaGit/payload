@@ -99,6 +99,9 @@ export const nlTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Dit account is al geactiveerd.',
     autosaving: 'Er is een probleem opgetreden bij het automatisch bewaren van dit document.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Gelieve de ongeldige velden te corrigeren.',
     deletingFile: 'Er is een fout opgetreden bij het verwijderen van dit bestand.',
     deletingTitle:
@@ -291,6 +294,7 @@ export const nlTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Bevestig herstel',
     copied: 'Gekopieerd',
     copy: 'Kopiëren',
+    copyBlock: 'Copy Block',
     copyField: 'Veld kopiëren',
     copying: 'Kopiëren',
     copyRow: 'Rij kopiëren',
@@ -407,6 +411,8 @@ export const nlTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Overschrijf bestaande veldgegevens',
     pageNotFound: 'Pagina niet gevonden',
     password: 'Wachtwoord',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Veld plakken',
     pasteRow: 'Rij plakken',
     payloadSettings: 'Payload Instellingen',

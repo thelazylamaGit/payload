@@ -98,6 +98,9 @@ export const arTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'تم تفعيل هذا الحساب بالفعل.',
     autosaving: 'حدثت مشكلة أثناء حفظ هذا المستند تلقائيًا.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'يرجى تصحيح الحقول غير الصالحة.',
     deletingFile: 'حدث خطأ أثناء حذف الملف.',
     deletingTitle:
@@ -275,6 +278,7 @@ export const arTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'تأكيد الاستعادة',
     copied: 'تمّ النّسخ',
     copy: 'نسخ',
+    copyBlock: 'Copy Block',
     copyField: 'نسخ الحقل',
     copying: 'نسخ',
     copyRow: 'نسخ الصف',
@@ -387,6 +391,8 @@ export const arTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'استبدل بيانات الحقل الموجودة',
     pageNotFound: 'الصّفحة غير موجودة',
     password: 'كلمة المرور',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'لصق الحقل',
     pasteRow: 'لصق الصف',
     payloadSettings: 'الإعدادات',

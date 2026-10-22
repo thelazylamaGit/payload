@@ -97,6 +97,9 @@ export const daTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Denne konto er allerede blevet aktiveret.',
     autosaving: 'Der opstod et problem under autosaving af dette dokument.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Venligst korriger ugyldige felter.',
     deletingFile: 'Der opstod en fejl under sletning af filen.',
     deletingTitle:
@@ -283,6 +286,7 @@ export const daTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Bekræft gendannelse',
     copied: 'Kopieret',
     copy: 'Kopier',
+    copyBlock: 'Copy Block',
     copyField: 'Kopiér felt',
     copying: 'Kopiering',
     copyRow: 'Kopiér række',
@@ -398,6 +402,8 @@ export const daTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Overskriv eksisterende feltdata',
     pageNotFound: 'Siden blev ikke fundet',
     password: 'Adgangskode',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Indsæt felt',
     pasteRow: 'Indsæt række',
     payloadSettings: 'Payload-indstillinger',

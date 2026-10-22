@@ -97,6 +97,9 @@ export const taTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'இந்த கணக்கு ஏற்கனவே செயல்படுத்தப்பட்டுள்ளது.',
     autosaving: 'இந்த ஆவணத்தை தானாகச் சேமிக்கும் போது ஒரு பிரச்சனை ஏற்பட்டது.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'தயவுசெய்து தவறான புலங்களைச் சரிசெய்யவும்.',
     deletingFile: 'கோப்பை நீக்கும் போது பிழை ஏற்பட்டது.',
     deletingTitle:
@@ -282,6 +285,7 @@ export const taTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'மீட்டெடுப்பை உறுதிசெய்',
     copied: 'நகலெடுக்கப்பட்டது',
     copy: 'நகலெடுக்கவும்',
+    copyBlock: 'Copy Block',
     copyField: 'புலத்தை நகலெடுக்கவும்',
     copying: 'நகலெடுக்கிறது...',
     copyRow: 'வரிசையை நகலெடுக்கவும்',
@@ -398,6 +402,8 @@ export const taTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'ஏற்கனவே உள்ள புலத் தரவை மேலெழுது',
     pageNotFound: 'பக்கம் கிடைக்கவில்லை',
     password: 'கடவுச்சொல்',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'புலத்தை ஒட்டு',
     pasteRow: 'வரிசையை ஒட்டு',
     payloadSettings: 'Payload அமைப்புகள்',

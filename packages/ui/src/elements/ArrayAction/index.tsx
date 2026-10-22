@@ -15,12 +15,15 @@ const baseClass = 'array-actions'
 
 export type Props = {
   addRow: (current: number, blockType?: string) => Promise<void> | void
+  copyLabel?: string
   copyRow: (index: number) => void
   duplicateRow: (current: number) => void
   hasMaxRows: boolean
   index: number
+  isPasteDisabled?: boolean
   isSortable?: boolean
   moveRow: (from: number, to: number) => void
+  pasteLabel?: string
   pasteRow: (index: number) => void
   removeRow: (index: number) => void
   rowCount: number
@@ -28,12 +31,15 @@ export type Props = {
 
 export const ArrayAction: React.FC<Props> = ({
   addRow,
+  copyLabel,
   copyRow,
   duplicateRow,
   hasMaxRows,
   index,
+  isPasteDisabled,
   isSortable,
   moveRow,
+  pasteLabel,
   pasteRow,
   removeRow,
   rowCount,
@@ -108,16 +114,17 @@ export const ArrayAction: React.FC<Props> = ({
                 close()
               }}
             >
-              <ClipboardActionLabel isRow />
+              <ClipboardActionLabel isRow label={copyLabel} />
             </PopupList.Button>
             <PopupList.Button
               className={`${baseClass}__action ${baseClass}__paste`}
+              disabled={isPasteDisabled}
               onClick={() => {
                 pasteRow(index)
                 close()
               }}
             >
-              <ClipboardActionLabel isPaste isRow />
+              <ClipboardActionLabel isPaste isRow label={pasteLabel} />
             </PopupList.Button>
             <PopupList.Button
               className={`${baseClass}__action ${baseClass}__remove`}

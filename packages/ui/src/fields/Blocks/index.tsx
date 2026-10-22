@@ -12,6 +12,10 @@ import { Button } from '../../elements/Button/index.js'
 import { clipboardCopy, clipboardPaste } from '../../elements/ClipboardAction/clipboardUtilities.js'
 import { ClipboardAction } from '../../elements/ClipboardAction/index.js'
 import {
+  canInsertBlock,
+  insertBlockFromClipboard,
+} from '../../elements/ClipboardAction/insertBlockFromClipboard.js'
+import {
   mergeFormStateFromClipboard,
   reduceFormStateByPath,
 } from '../../elements/ClipboardAction/mergeFormStateFromClipboard.js'
@@ -265,31 +269,58 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
   )
 
   const pasteRow = useCallback(
-    (rowIndex: number) => {
-      const pasteArgs = {
+    (rowIndex?: number) => {
+      const clipboardResult = clipboardPaste({
+        blockInsertion: true,
+        canPaste: (data) => {
+          const blockType = data.data[`${data.path}.${data.rowIndex}.blockType`].value as string
+          if (
+            !canInsertBlock({
+              blockType,
+              disabled,
+              fieldState: getFields()[path],
+              maxRows,
+              readOnly,
+            })
+          ) {
+            return t('error:blockPasteUnavailable')
+          }
+          return true
+        },
         onPaste: (dataFromClipboard: ClipboardPasteData) => {
-          const formState = { ...getFields() }
-          const newState = mergeFormStateFromClipboard({
+          const formState = getFields()
+          const newState = insertBlockFromClipboard({
+            blocksMap: config.blocksMap,
             dataFromClipboard,
             formState,
             path,
-            rowIndex,
+            rowIndex:
+              typeof rowIndex === 'number' ? rowIndex + 1 : (formState[path]?.rows?.length ?? 0),
           })
           replaceState(newState)
           setModified(true)
         },
         path,
-        schemaBlocks: clientBlocks,
+        schemaBlocks: clientBlocksAfterFilter,
         t,
-      }
-
-      const clipboardResult = clipboardPaste(pasteArgs)
+      })
 
       if (typeof clipboardResult === 'string') {
         toast.error(clipboardResult)
       }
     },
-    [clientBlocks, getFields, path, replaceState, setModified, t],
+    [
+      clientBlocksAfterFilter,
+      config.blocksMap,
+      disabled,
+      getFields,
+      maxRows,
+      path,
+      readOnly,
+      replaceState,
+      setModified,
+      t,
+    ],
   )
 
   const pasteBlocks = useCallback(
@@ -306,7 +337,7 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
     [getFields, path, replaceState, setModified],
   )
 
-  const hasMaxRows = maxRows && rows.length >= maxRows
+  const hasMaxRows = Boolean(maxRows && rows.length >= maxRows)
 
   const fieldErrorCount = errorPaths.length
   const fieldHasErrors = submitted && fieldErrorCount + (valid ? 0 : 1) > 0
@@ -392,7 +423,9 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
                     path,
                   })
                 }
+                isPasteBlockDisabled={Boolean(hasMaxRows)}
                 onPaste={pasteBlocks}
+                onPasteBlock={() => pasteRow()}
                 path={path}
                 type={type}
               />

@@ -98,6 +98,9 @@ export const azTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Bu hesab artıq aktivləşdirilib.',
     autosaving: 'Bu sənədin avto yadda saxlanılması zamanı problem yarandı.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Zəhmət olmasa, yanlış sahələri düzəlt.',
     deletingFile: 'Faylın silinməsində xəta baş verdi.',
     deletingTitle:
@@ -286,6 +289,7 @@ export const azTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Bərpa etməni təsdiqləyin',
     copied: 'Kopyalandı',
     copy: 'Kopyala',
+    copyBlock: 'Copy Block',
     copyField: 'Sahəni kopyala',
     copying: 'Kopyalama',
     copyRow: 'Sətiri kopyala',
@@ -402,6 +406,8 @@ export const azTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Mövcud sahə məlumatlarını yenidən yazın',
     pageNotFound: 'Səhifə tapılmadı',
     password: 'Şifrə',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Sahəni yapışdır',
     pasteRow: 'Sətiri yapışdır',
     payloadSettings: 'Payload Parametrləri',

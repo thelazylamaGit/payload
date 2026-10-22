@@ -98,6 +98,9 @@ export const slTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Ta račun je že aktiviran.',
     autosaving: 'Pri samodejnem shranjevanju tega dokumenta je prišlo do težave.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Prosimo, popravite neveljavna polja.',
     deletingFile: 'Pri brisanju datoteke je prišlo do napake.',
     deletingTitle:
@@ -284,6 +287,7 @@ export const slTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Potrdite obnovitev',
     copied: 'Kopirano',
     copy: 'Kopiraj',
+    copyBlock: 'Copy Block',
     copyField: 'Kopiraj polje',
     copying: 'Kopiranje',
     copyRow: 'Kopiraj vrstico',
@@ -399,6 +403,8 @@ export const slTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Prepišite obstoječe podatke polja',
     pageNotFound: 'Stran ni najdena',
     password: 'Geslo',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Prilepi polje',
     pasteRow: 'Prilepi vrstico',
     payloadSettings: 'Nastavitve Payloada',

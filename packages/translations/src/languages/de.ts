@@ -100,6 +100,9 @@ export const deTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Dieses Benutzerkonto wurde bereits aktiviert',
     autosaving: 'Es gab ein Problem bei der automatischen Speicherung für dieses Dokument',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Bitte ungültige Felder korrigieren.',
     deletingFile: 'Beim Löschen der Datei ist ein Fehler aufgetreten.',
     deletingTitle:
@@ -292,6 +295,7 @@ export const deTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Wiederherstellung bestätigen',
     copied: 'Kopiert',
     copy: 'Kopieren',
+    copyBlock: 'Copy Block',
     copyField: 'Feld kopieren',
     copying: 'Kopieren',
     copyRow: 'Zeile kopieren',
@@ -408,6 +412,8 @@ export const deTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Vorhandene Eingaben überschreiben',
     pageNotFound: 'Seite nicht gefunden',
     password: 'Passwort',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Feld einfügen',
     pasteRow: 'Zeile einfügen',
     payloadSettings: 'Payload-Einstellungen',

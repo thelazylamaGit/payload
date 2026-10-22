@@ -99,6 +99,9 @@ export const ruTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Этот аккаунт уже был активирован.',
     autosaving: 'При автосохранении этого документа возникла проблема.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Пожалуйста, исправьте неправильные поля.',
     deletingFile: 'Произошла ошибка при удалении файла.',
     deletingTitle:
@@ -286,6 +289,7 @@ export const ruTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Подтвердите восстановление',
     copied: 'Скопировано',
     copy: 'Скопировать',
+    copyBlock: 'Copy Block',
     copyField: 'Копировать поле',
     copying: 'Копирование',
     copyRow: 'Копировать строку',
@@ -402,6 +406,8 @@ export const ruTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Перезаписать существующие данные поля',
     pageNotFound: 'Страница не найдена',
     password: 'Пароль',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Вставить поле',
     pasteRow: 'Вставить строку',
     payloadSettings: 'Настройки Payload',

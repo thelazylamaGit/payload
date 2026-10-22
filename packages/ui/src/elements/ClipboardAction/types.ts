@@ -38,6 +38,8 @@ export type ClipboardPasteData = {
 export type OnPasteFn = (data: ClipboardPasteData) => void
 
 export type ClipboardPasteActionArgs = {
+  blockInsertion?: boolean
+  canPaste?: (data: ClipboardPasteData) => string | true
   onPaste: OnPasteFn
   path: string
   t: TFunction
@@ -56,3 +58,8 @@ export type ClipboardPasteActionValidateArgs = {
     }
 ) &
   ClipboardPasteData
+
+// UI-only metadata travels with the native form-state clipboard, never with document data.
+export type RichTextClipboardMetadata = {
+  clipboardBlocks?: ClientBlock[]
+}

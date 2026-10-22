@@ -99,6 +99,9 @@ export const idTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Akun ini sudah diaktifkan.',
     autosaving: 'Terjadi masalah saat menyimpan otomatis dokumen ini.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Harap perbaiki isian yang tidak valid.',
     deletingFile: 'Terjadi kesalahan saat menghapus file.',
     deletingTitle:
@@ -285,6 +288,7 @@ export const idTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Konfirmasi pemulihan',
     copied: 'Disalin',
     copy: 'Salin',
+    copyBlock: 'Copy Block',
     copyField: 'Salin Isian',
     copying: 'Menyalin',
     copyRow: 'Salin Baris',
@@ -401,6 +405,8 @@ export const idTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Timpa data isian yang ada',
     pageNotFound: 'Halaman tidak ditemukan',
     password: 'Kata Sandi',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Tempel Isian',
     pasteRow: 'Tempel Baris',
     payloadSettings: 'Pengaturan Payload',

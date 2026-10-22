@@ -94,6 +94,9 @@ export const zhTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: '该账号已被激活。',
     autosaving: '自动保存该文档时出现了问题。',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: '请更正无效字段。',
     deletingFile: '删除文件时出现了错误。',
     deletingTitle: '删除{{title}}时出现了错误。请检查您的连接并重试。',
@@ -267,6 +270,7 @@ export const zhTranslations: DefaultTranslationsObject = {
     confirmRestoration: '确认恢复',
     copied: '已复制',
     copy: '复制',
+    copyBlock: 'Copy Block',
     copyField: '复制字段',
     copying: '复制中',
     copyRow: '复制行',
@@ -378,6 +382,8 @@ export const zhTranslations: DefaultTranslationsObject = {
     overwriteExistingData: '覆盖现有字段数据',
     pageNotFound: '未找到页面',
     password: '密码',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: '粘贴字段',
     pasteRow: '粘贴行',
     payloadSettings: 'Payload 设置',

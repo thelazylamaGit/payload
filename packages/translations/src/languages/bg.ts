@@ -98,6 +98,9 @@ export const bgTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Този профил вече е активиран.',
     autosaving: 'Имаше проблем в автоматичното запазване на този документ.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Моля, поправи некоректните полета.',
     deletingFile: 'Имаше грешка при изтриването на файла.',
     deletingTitle:
@@ -283,6 +286,7 @@ export const bgTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Потвърдете възстановяването',
     copied: 'Копирано',
     copy: 'Копирай',
+    copyBlock: 'Copy Block',
     copyField: 'Копирай поле',
     copying: 'Копиране',
     copyRow: 'Копирай ред',
@@ -399,6 +403,8 @@ export const bgTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Презапишете съществуващите данни в полето',
     pageNotFound: 'Страницата не беше открита',
     password: 'Парола',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Постави поле',
     pasteRow: 'Постави ред',
     payloadSettings: 'Настройки на Payload',

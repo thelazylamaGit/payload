@@ -96,6 +96,9 @@ export const thTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'บัญชีนี้ถูกเปิดใช้งานไปแล้ว',
     autosaving: 'เกิดปัญหาระหว่างการบันทึกเอกสารอัตโนมัติ',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'โปรดแก้ไขช่องที่ไม่ถูกต้อง',
     deletingFile: 'เกิดปัญหาระหว่างการลบไฟล์',
     deletingTitle: 'เกิดปัญหาระหว่างการลบ {{title}} โปรดตรวจสอบการเชื่อมต่อของคุณแล้วลองอีกครั้ง',
@@ -276,6 +279,7 @@ export const thTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'ยืนยันการคืนค่าให้ครบถ้วน',
     copied: 'คัดลอกแล้ว',
     copy: 'คัดลอก',
+    copyBlock: 'Copy Block',
     copyField: 'คัดลอกฟิลด์',
     copying: 'การคัดลอก',
     copyRow: 'คัดลอกแถว',
@@ -390,6 +394,8 @@ export const thTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'เขียนทับข้อมูลในฟิลด์ที่มีอยู่แล้ว',
     pageNotFound: 'ไม่พบหน้าที่ต้องการ',
     password: 'รหัสผ่าน',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'วางฟิลด์',
     pasteRow: 'วางแถว',
     payloadSettings: 'การตั้งค่า Payload',

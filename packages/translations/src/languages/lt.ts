@@ -99,6 +99,9 @@ export const ltTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Ši paskyra jau aktyvuota.',
     autosaving: 'Šio dokumento automatinio išsaugojimo metu kilo problema.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Prašome ištaisyti neteisingus laukus.',
     deletingFile: 'Įvyko klaida trinant failą.',
     deletingTitle:
@@ -287,6 +290,7 @@ export const ltTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Patvirtinkite atkūrimą',
     copied: 'Nukopijuota',
     copy: 'Kopijuoti',
+    copyBlock: 'Copy Block',
     copyField: 'Kopijuoti lauką',
     copying: 'Kopijavimas',
     copyRow: 'Kopijuoti eilutę',
@@ -402,6 +406,8 @@ export const ltTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Perrašyti esamus lauko duomenis',
     pageNotFound: 'Puslapis nerastas',
     password: 'Slaptažodis',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Įklijuoti lauką',
     pasteRow: 'Įklijuoti eilutę',
     payloadSettings: 'Payload nustatymai',

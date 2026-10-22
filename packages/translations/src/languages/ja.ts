@@ -99,6 +99,9 @@ export const jaTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'このアカウントはすでに有効です。',
     autosaving: 'このデータを自動保存する際に問題が発生しました。',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: '無効なフィールドを修正してください。',
     deletingFile: 'ファイルの削除中にエラーが発生しました。',
     deletingTitle:
@@ -286,6 +289,7 @@ export const jaTranslations: DefaultTranslationsObject = {
     confirmRestoration: '復元を確認してください',
     copied: 'コピーしました',
     copy: 'コピー',
+    copyBlock: 'Copy Block',
     copyField: 'フィールドをコピー',
     copying: 'コピーする',
     copyRow: '行をコピー',
@@ -401,6 +405,8 @@ export const jaTranslations: DefaultTranslationsObject = {
     overwriteExistingData: '既存のフィールドデータを上書きする',
     pageNotFound: 'ページが見つかりません',
     password: 'パスワード',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'フィールドを貼り付け',
     pasteRow: '行を貼り付け',
     payloadSettings: 'Payload 設定',

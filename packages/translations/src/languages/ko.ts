@@ -97,6 +97,9 @@ export const koTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: '이 계정은 이미 활성화되었습니다.',
     autosaving: '이 문서를 자동 저장하는 중에 문제가 발생했습니다.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: '입력하신 내용을 확인해주세요.',
     deletingFile: '파일을 삭제하는 중에 오류가 발생했습니다.',
     deletingTitle:
@@ -281,6 +284,7 @@ export const koTranslations: DefaultTranslationsObject = {
     confirmRestoration: '복구를 확인하십시오',
     copied: '복사됨',
     copy: '복사',
+    copyBlock: 'Copy Block',
     copyField: '필드 복사',
     copying: '복사하기',
     copyRow: '행 복사',
@@ -395,6 +399,8 @@ export const koTranslations: DefaultTranslationsObject = {
     overwriteExistingData: '기존 필드 데이터 덮어쓰기',
     pageNotFound: '페이지를 찾을 수 없음',
     password: '비밀번호',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: '필드 붙여넣기',
     pasteRow: '행 붙여넣기',
     payloadSettings: 'Payload 설정',

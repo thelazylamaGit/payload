@@ -99,6 +99,9 @@ export const rsLatinTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Ovaj nalog je već aktiviran.',
     autosaving: 'Nastao je problem pri automatskom čuvanju ovog dokumenta.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Molimo ispravite nevalidna polja.',
     deletingFile: 'Dogodila se greška pri brisanju datoteke.',
     deletingTitle:
@@ -285,6 +288,7 @@ export const rsLatinTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Potvrdite obnovu',
     copied: 'Kopirano',
     copy: 'Kopiraj',
+    copyBlock: 'Copy Block',
     copyField: 'Kopiraj polje',
     copying: 'Kopiranje',
     copyRow: 'Kopiraj red',
@@ -400,6 +404,8 @@ export const rsLatinTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Prepiši postojeće podatke iz polja',
     pageNotFound: 'Stranica nije pronađena',
     password: 'Lozinka',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Zalepi polje',
     pasteRow: 'Zalepi red',
     payloadSettings: 'Payload postavke',

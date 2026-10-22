@@ -99,6 +99,9 @@ export const itTranslations: DefaultTranslationsObject = {
     accountAlreadyActivated: 'Questo account è già stato attivato.',
     autosaving:
       'Si è verificato un problema durante il salvataggio automatico di questo documento.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Per favore correggi i campi non validi.',
     deletingFile: "Si è verificato un errore durante l'eleminazione del file.",
     deletingTitle:
@@ -288,6 +291,7 @@ export const itTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Conferma il ripristino',
     copied: 'Copiato',
     copy: 'Copia',
+    copyBlock: 'Copy Block',
     copyField: 'Copia campo',
     copying: 'Copia',
     copyRow: 'Copia riga',
@@ -402,6 +406,8 @@ export const itTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Sovrascrivi i dati del campo esistente',
     pageNotFound: 'Pagina non trovata',
     password: 'Password',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Incolla campo',
     pasteRow: 'Incolla riga',
     payloadSettings: 'Impostazioni di Payload',

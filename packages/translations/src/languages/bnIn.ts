@@ -98,6 +98,9 @@ export const bnInTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'এই অ্যাকাউন্ট ইতিমধ্যে সক্রিয় করা হয়েছে।',
     autosaving: 'এই ডকুমেন্টটি স্বয়ংক্রিয়ভাবে সংরক্ষণ করার সময় একটি সমস্যা হয়েছে।',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'অবৈধ ক্ষেত্রগুলি সংশোধন করুন।',
     deletingFile: 'ফাইল মুছতে একটি ত্রুটি হয়েছে।',
     deletingTitle:
@@ -287,6 +290,7 @@ export const bnInTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'পুনর্বাসন নিশ্চিত করুন',
     copied: 'কপি করা হয়েছে',
     copy: 'কপি করুন',
+    copyBlock: 'Copy Block',
     copyField: 'ফিল্ড কপি করুন',
     copying: 'কপি করা হচ্ছে',
     copyRow: 'সারি কপি করুন',
@@ -403,6 +407,8 @@ export const bnInTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'বিদ্যমান ফিল্ড ডেটা ওভাররাইট করুন',
     pageNotFound: 'পৃষ্ঠা পাওয়া যায়নি',
     password: 'পাসওয়ার্ড',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'ফিল্ড পেস্ট করুন',
     pasteRow: 'সারি পেস্ট করুন',
     payloadSettings: 'পেলোড সেটিংস',

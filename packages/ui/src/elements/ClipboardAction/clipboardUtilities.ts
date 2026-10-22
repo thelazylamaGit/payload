@@ -32,6 +32,8 @@ export function clipboardCopy(args: ClipboardCopyActionArgs): string | true {
  * @note This function doesn't use the Clipboard API, but localStorage. See rationale in #11513
  */
 export function clipboardPaste({
+  blockInsertion,
+  canPaste,
   onPaste,
   path: fieldPath,
   t,
@@ -51,17 +53,45 @@ export function clipboardPaste({
     return t('error:invalidClipboardData')
   }
 
+  if (blockInsertion) {
+    if (
+      dataToPaste?.type !== 'blocks' ||
+      !Number.isInteger(dataToPaste.rowIndex) ||
+      dataToPaste.rowIndex < 0
+    ) {
+      return t('error:blockClipboardRequired')
+    }
+  }
+
   const dataToValidate = {
     ...dataToPaste,
     ...args,
     fieldPath,
   } as ClipboardPasteActionValidateArgs
 
-  if (!isClipboardDataValid(dataToValidate)) {
+  let isValid = false
+  try {
+    isValid = isClipboardDataValid(dataToValidate)
+  } catch (_err) {
+    return t('error:invalidClipboardData')
+  }
+  if (!isValid) {
     return t('error:invalidClipboardData')
   }
 
-  onPaste(dataToPaste)
+  const availability = canPaste?.(dataToPaste)
+  if (typeof availability === 'string') {
+    return availability
+  }
+
+  try {
+    onPaste(dataToPaste)
+  } catch (error) {
+    if (blockInsertion) {
+      return t('error:invalidClipboardData')
+    }
+    throw error
+  }
 
   return true
 }

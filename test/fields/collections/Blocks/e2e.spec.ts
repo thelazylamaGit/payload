@@ -566,7 +566,7 @@ describe('Block fields', () => {
       await expect(rowTextInput).toHaveValue(textVal)
     })
 
-    test('should copy and paste block rows', async () => {
+    test('should insert copied blocks below a row and preserve the original', async () => {
       await page.goto(url.create)
       const field = page.locator('#field-blocks')
       const row = field.locator('#blocks-row-0')
@@ -592,7 +592,8 @@ describe('Block fields', () => {
         rowIndex: 0,
       })
 
-      await expect(rowTextInput).toHaveValue(textVal)
+      await expect(rowTextInput).toHaveValue('first block')
+      await expect(field.locator('#field-blocks__1__text')).toHaveValue(textVal)
     })
 
     test('should copy a block row and paste into a field with the same schema', async () => {
@@ -616,7 +617,7 @@ describe('Block fields', () => {
       await expect(rowTextInput).toHaveValue('342')
     })
 
-    test('should copy a block field and paste into a row with the same schema', async () => {
+    test('should direct a copied whole field to Paste Field when inserting below', async () => {
       await page.goto(url.create)
 
       const originalField = page.locator('#field-blocks')
@@ -640,10 +641,11 @@ describe('Block fields', () => {
       const rowsContainer = page.locator('#field-duplicate > div.blocks-field__rows').first()
       await expect(rowsContainer).toBeVisible()
       const rowTextInput = rowsContainer.locator('#field-duplicate__0__text')
-      await expect(rowTextInput).toHaveValue('row one copy')
+      await expect(rowTextInput).toHaveValue('first block')
+      await expect(page.locator('.payload-toast-item.toast-error')).toContainText('use Paste Field')
     })
 
-    test('should correctly paste a row with nested blocks into a row with no children', async () => {
+    test('should insert nested blocks below a row without replacing it', async () => {
       await page.goto(url.create)
 
       const field = page.locator('#field-blocks')
@@ -668,12 +670,12 @@ describe('Block fields', () => {
         action: 'paste',
       })
 
-      const textInputRowTwo = field.locator('#field-blocks__4__subBlocks__1__text')
+      const textInputRowTwo = field.locator('#field-blocks__5__subBlocks__1__text')
       await expect(textInputRowTwo).toBeVisible()
       await expect(textInputRowTwo).toHaveValue(textInputRowOneValue)
     })
 
-    test('should replace the rows of a nested block field with those of its paste counterpart', async () => {
+    test('should preserve existing nested blocks when inserting an empty nested block below', async () => {
       await page.goto(url.create)
 
       await addBlock({
@@ -706,8 +708,13 @@ describe('Block fields', () => {
         action: 'paste',
       })
 
-      await expect(subArrayContainer).toHaveCount(0)
-      await expect(subArrayContainer2).toHaveCount(0)
+      await expect(subArrayContainer).toHaveCount(2)
+      await expect(
+        field.locator('#field-blocks__3__subBlocks > div.blocks-field__rows > div'),
+      ).toHaveCount(0)
+      await expect(
+        field.locator('#field-blocks__5__subBlocks > div.blocks-field__rows > div'),
+      ).toHaveCount(0)
     })
 
     test('should generate unique block IDs when pasting blocks across documents', async () => {

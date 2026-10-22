@@ -98,6 +98,9 @@ export const plTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'To konto zostało już aktywowane.',
     autosaving: 'Wystąpił problem podczas automatycznego zapisywania tego dokumentu.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Popraw nieprawidłowe pola.',
     deletingFile: '',
     deletingTitle:
@@ -283,6 +286,7 @@ export const plTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Potwierdź przywrócenie',
     copied: 'Skopiowano',
     copy: 'Skopiuj',
+    copyBlock: 'Copy Block',
     copyField: 'Kopiuj pole',
     copying: 'Kopiowanie',
     copyRow: 'Kopiuj wiersz',
@@ -399,6 +403,8 @@ export const plTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Nadpisz istniejące dane pola',
     pageNotFound: 'Strona nie znaleziona',
     password: 'Hasło',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Wklej pole',
     pasteRow: 'Wklej wiersz',
     payloadSettings: 'Ustawienia Payload',

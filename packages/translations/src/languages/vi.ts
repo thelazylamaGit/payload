@@ -98,6 +98,9 @@ export const viTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Lỗi - Tài khoản này đã được kích hoạt.',
     autosaving: 'Lỗi - Đã xảy ra vấn đề khi tự động sao lưu bản tài liệu này.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Lỗi - Xin hãy sửa lại những fields không hợp lệ.',
     deletingFile: 'Lỗi - Đã xảy ra vấn đề khi xóa tệp này.',
     deletingTitle:
@@ -283,6 +286,7 @@ export const viTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Xác nhận khôi phục',
     copied: 'Đã sao chép',
     copy: 'Sao chép',
+    copyBlock: 'Copy Block',
     copyField: 'Sao chép trường',
     copying: 'Sao chép',
     copyRow: 'Sao chép dòng',
@@ -399,6 +403,8 @@ export const viTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Ghi đè dữ liệu trường hiện tại',
     pageNotFound: 'Không tìm thấy trang',
     password: 'Mật khẩu',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Dán trường',
     pasteRow: 'Dán dòng',
     payloadSettings: 'Cài đặt',

@@ -99,6 +99,9 @@ export const skTranslations: DefaultTranslationsObject = {
   error: {
     accountAlreadyActivated: 'Tento účet už bol aktivovaný.',
     autosaving: 'Pri automatickom ukladaní tohto dokumentu došlo k chybe.',
+    blockClipboardRequired: 'Copy an individual block first. For a copied field, use Paste Field.',
+    blockPasteUnavailable:
+      'This block cannot be inserted here. Check the row limit and allowed block types.',
     correctInvalidFields: 'Opravte neplatné polia.',
     deletingFile: 'Pri mazaní súboru došlo k chybe.',
     deletingTitle:
@@ -286,6 +289,7 @@ export const skTranslations: DefaultTranslationsObject = {
     confirmRestoration: 'Potvrďte obnovenie',
     copied: 'Skopírované',
     copy: 'Kopírovať',
+    copyBlock: 'Copy Block',
     copyField: 'Kopírovať pole',
     copying: 'Kopírovanie',
     copyRow: 'Kopírovať riadok',
@@ -399,6 +403,8 @@ export const skTranslations: DefaultTranslationsObject = {
     overwriteExistingData: 'Prepísať existujúce pole dát',
     pageNotFound: 'Stránka nenájdená',
     password: 'Heslo',
+    pasteBlock: 'Paste Block',
+    pasteBlockBelow: 'Paste Block Below',
     pasteField: 'Prilepiť pole',
     pasteRow: 'Prilepiť riadok',
     payloadSettings: 'Nastavenia dátového záznamu',
