@@ -1,5 +1,7 @@
 import { type FormField, type FormState } from 'payload'
 
+import { stripClipboardMetadata } from './stripClipboardMetadata.js'
+
 type BlacklistedKeys = 'customComponents' | 'validate'
 const blacklistedKeys: BlacklistedKeys[] = ['validate', 'customComponents']
 
@@ -24,8 +26,10 @@ export const reduceToSerializableFields = (
 } => {
   const result: Record<string, Omit<FormField, BlacklistedKeys>> = {}
 
-  for (const key in fields) {
-    result[key] = sanitizeField(fields[key])
+  const fieldsWithoutClipboardMetadata = stripClipboardMetadata(fields)
+
+  for (const key in fieldsWithoutClipboardMetadata) {
+    result[key] = sanitizeField(fieldsWithoutClipboardMetadata[key])
   }
 
   return result

@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClipboardPasteData } from './types.js'
 
 import { clipboardCopy, clipboardPaste } from './clipboardUtilities.js'
+import { compactClipboardBlockSchema } from './compactClipboardBlockSchema.js'
 import { canInsertBlock, insertBlockFromClipboard } from './insertBlockFromClipboard.js'
 import {
   mergeFormStateFromClipboard,
@@ -67,7 +68,7 @@ function copied(): ClipboardPasteData {
       'source.1.body': {
         value: structuredClone(richText),
         valid: true,
-        ...{ clipboardBlocks: [embedded] },
+        ...{ clipboardBlocks: [compactClipboardBlockSchema(embedded)] },
       },
       'source.1.settings.theme': { value: 'dark-unsaved', valid: true },
       'source.1.settings.id': { value: 'user-defined-id', valid: true },
@@ -279,7 +280,11 @@ describe('native block insertion', () => {
         ],
       },
     }
-    data.data['source.1.body'] = { value: body, valid: true, ...{ clipboardBlocks: [schema] } }
+    data.data['source.1.body'] = {
+      value: body,
+      valid: true,
+      ...{ clipboardBlocks: [compactClipboardBlockSchema(schema)] },
+    }
     const result = insertBlockFromClipboard({
       blocksMap: { nested },
       dataFromClipboard: data,

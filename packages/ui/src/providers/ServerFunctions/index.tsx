@@ -32,6 +32,8 @@ import type {
   SchedulePublishHandlerArgs,
 } from '../../utilities/schedulePublishHandler.js'
 
+import { stripClipboardMetadataFromRequest } from '../../forms/Form/stripClipboardMetadata.js'
+
 type GetFormStateClient = (
   args: {
     signal?: AbortSignal
@@ -219,7 +221,7 @@ export const ServerFunctionsProvider: React.FC<{
         if (!remoteSignal?.aborted) {
           const result = (await serverFunction({
             name: 'form-state',
-            args: { fallbackLocale: false, ...rest },
+            args: stripClipboardMetadataFromRequest({ fallbackLocale: false, ...rest }),
           })) as Awaited<ReturnType<typeof buildFormStateHandler>> // TODO: infer this type when `strictNullChecks` is enabled
 
           if (!remoteSignal?.aborted) {
@@ -265,10 +267,10 @@ export const ServerFunctionsProvider: React.FC<{
       try {
         const result = (await serverFunction({
           name: 'render-document',
-          args: {
+          args: stripClipboardMetadataFromRequest({
             fallbackLocale: false,
             ...rest,
-          } as Parameters<RenderDocumentServerFunctionHookFn>[0],
+          }) as Parameters<RenderDocumentServerFunctionHookFn>[0],
         })) as Awaited<ReturnType<RenderDocumentServerFunctionHookFn>> // TODO: infer this type when `strictNullChecks` is enabled
 
         return result

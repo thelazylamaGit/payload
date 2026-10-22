@@ -117,7 +117,19 @@ try {
     assert.equal(result['layout.1.text'].value, 'unsaved copy')
     assert.notEqual(result['layout.1.id'].value, 'copied')
     assert.equal(current.layout.rows.length, 1)
-    console.log('Cold frozen-lockfile consumer, compiled exports, and block insertion passed')
+    const { stripClipboardMetadataFromRequest } = await import(new URL(
+      '../../forms/Form/stripClipboardMetadata.js', import.meta.resolve('@payloadcms/ui'),
+    ))
+    const localState = { body: {
+      valid: true, value: { root: { type: 'root', children: [{ type: 'text', text: 'Keep rich text', format: 1 }] } },
+      clipboardBlocks: [{ slug: 'embedded', fields: [] }],
+    } }
+    const request = stripClipboardMetadataFromRequest({ formState: localState, documentFormState: localState })
+    assert.equal('clipboardBlocks' in request.formState.body, false)
+    assert.equal('clipboardBlocks' in request.documentFormState.body, false)
+    assert.deepEqual(request.formState.body.value, localState.body.value)
+    assert.equal('clipboardBlocks' in localState.body, true)
+    console.log('Cold frozen-lockfile consumer, compiled exports, block insertion, and request sanitization passed')
   `,
   )
   execFileSync('node', ['smoke.mjs'], { cwd: temp, stdio: 'inherit' })

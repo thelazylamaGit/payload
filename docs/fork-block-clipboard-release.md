@@ -12,6 +12,16 @@ The form builder attaches client-safe embedded block schemas already present in 
 
 English labels/messages live in the translations package and are registered as client keys. Other locales currently use the same English strings for these new keys. No translation service or API key is required.
 
+## Clipboard metadata and Server Action request size
+
+The first release attached full embedded block schemas to rich-text form state. Native form updates and nested Lexical form requests inadvertently sent that client-only metadata back to the server. Repeated schemas could push otherwise small requests above Next.js's default 1 MB Server Action body limit, causing HTTP 413 errors and disrupting Admin rendering/live preview.
+
+The fix keeps compact structural schemas locally for clipboard ID regeneration and strips field-level `clipboardBlocks` metadata from outgoing form state, including parent-document state used by the existing Lexical fork. All document values, initial values, rich-text JSON, settings, row IDs, and external references are preserved. The server already resolves schemas from its configuration. Whole-field and selected-block compatibility checks still use their original schemas; compaction applies only to the additional metadata used for structural IDs.
+
+A synthetic regression fixture measured 1,333,465 bytes of JSON before stripping and 2,725 bytes afterward, with unchanged field values. These are fixture measurements, not measurements of TheHealthLodge's HTTP requests. Actual document content and request encoding still count toward Next.js's body limit. This change does not impose a smaller copy limit or increase the application's Next.js body limit.
+
+This requires a new UI artifact to reach consumers; the existing Lexical override can stay unchanged. Use a fresh release revision (for example `block-clipboard-3.91.0-patches.2` if unused) and update the two block-clipboard overrides/lockfile after publication. Do not overwrite the first release or its tag.
+
 ## Triggering a release (after review)
 
 The separate `.github/workflows/release-block-clipboard-fork.yml` workflow accepts tags of the form:
@@ -82,7 +92,7 @@ Local fork checks:
 ```sh
 pnpm build:ui
 pnpm exec tsc --noEmit -p packages/ui/tsconfig.json
-pnpm exec vitest run --project unit packages/ui/src/elements/ClipboardAction
+pnpm exec vitest run --project unit packages/ui/src/elements/ClipboardAction packages/ui/src/forms/Form/stripClipboardMetadata.spec.ts packages/ui/src/providers/ServerFunctions/clipboardMetadata.spec.ts
 pnpm exec eslint packages/ui/src/elements/ClipboardAction packages/ui/src/elements/ArrayAction/index.tsx packages/ui/src/fields/Blocks/index.tsx packages/ui/src/fields/Blocks/RowActions.tsx packages/ui/src/forms/fieldSchemasToFormState/renderField.tsx packages/translations/src/clientKeys.ts packages/translations/src/languages/*.ts
 mkdir -p /tmp/block-clipboard-artifacts
 pnpm -C packages/ui pack --pack-destination /tmp/block-clipboard-artifacts
@@ -109,8 +119,8 @@ This task does not edit TheHealthLodge, push commits/tags, or publish releases.
 
 - `pnpm build:ui`: passed, including dependency builds, declarations, React compilation, bundles, and styles.
 - UI `tsc --noEmit`: passed.
-- Focused clipboard regression suite: **50 passed** across four test files, including the pre-existing clipboard tests.
-- Lint of changed UI/translation sources and new tests: passed without warnings. Formatting and `git diff --check`: passed.
+- Focused clipboard regression suite: **62 passed** across seven test files, including the pre-existing clipboard tests.
+- Production-source lint: passed with no errors; five pre-existing warnings remain in Form and ServerFunctions. Unit test files are excluded by the repository ESLint/TypeScript configuration and were executed with Vitest. Formatting and `git diff --check`: passed.
 - Both final tarballs: verified contents, concrete/wildcard exports, UI assets, package alignment, and external dependency specifiers. Local `SHA256SUMS` generated.
 - Cold temporary consumer: passed frozen-lockfile installation with a new empty store, compiled exports, and execution of compiled block insertion against public `payload@3.91.0`, alongside the existing downloaded Lexical release. No replacement core package was used.
 - Focused Blocks browser suite: attempted, but the test app could not connect to MongoDB at `127.0.0.1:27018`. Browser behavior is not claimed as verified. The existing Blocks e2e file has 49 sort-order lint errors and two warnings both before and after the edits; no additional lint findings were introduced there.
