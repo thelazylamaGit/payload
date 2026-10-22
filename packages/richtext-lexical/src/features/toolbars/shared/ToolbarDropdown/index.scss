@@ -172,10 +172,28 @@
         height: 32px;
       }
 
+      &:focus,
       .toolbar-popup__dropdown-item:focus-visible,
       .toolbar-popup__dropdown-submenu:focus-visible {
-        background-color: var(--theme-elevation-100);
         outline: none;
+      }
+
+      &[data-navigation='keyboard'] {
+        .toolbar-popup__dropdown-item:hover:not(:focus):not(.active),
+        .toolbar-popup__dropdown-submenu:hover:not(:focus):not([aria-expanded='true']) {
+          background: none;
+        }
+
+        .toolbar-popup__dropdown-item:focus,
+        .toolbar-popup__dropdown-submenu:focus {
+          background-color: var(--theme-elevation-100);
+        }
+      }
+
+      &[data-navigation='pointer'] {
+        .toolbar-popup__dropdown-submenu:focus-visible:not(:hover):not([aria-expanded='true']) {
+          background: none;
+        }
       }
     }
   }

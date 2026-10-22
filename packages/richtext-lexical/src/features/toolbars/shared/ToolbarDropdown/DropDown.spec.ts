@@ -77,7 +77,10 @@ function click(element: HTMLElement) {
 }
 
 function press(element: HTMLElement, key: string) {
-  act(() => element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key })))
+  act(() => {
+    element.focus()
+    element.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key }))
+  })
 }
 
 afterEach(() => {
@@ -94,7 +97,7 @@ describe('nested toolbar dropdowns', () => {
 
     expect(button('add').getAttribute('aria-expanded')).toBe('true')
     expect(button('blocks').getAttribute('aria-expanded')).toBe('true')
-    expect(document.activeElement).toBe(choice('hero'))
+    expect(document.activeElement).toBe(choice('hero').parentElement)
 
     click(choice('hero'))
 
@@ -123,6 +126,10 @@ describe('nested toolbar dropdowns', () => {
     expect(document.activeElement).toBe(button('blocks'))
 
     press(button('blocks'), 'ArrowRight')
+
+    expect(document.activeElement).toBe(choice('hero').parentElement)
+
+    press(document.activeElement as HTMLElement, 'ArrowDown')
 
     expect(document.activeElement).toBe(choice('hero'))
 
@@ -192,7 +199,7 @@ describe('nested toolbar dropdowns', () => {
 
     click(button('blocks'))
 
-    expect(document.activeElement).toBe(choice('hero'))
+    expect(document.activeElement).toBe(choice('hero').parentElement)
   })
 
   it('should rebuild keyboard registration when reopening a child menu', () => {
@@ -228,6 +235,54 @@ describe('nested toolbar dropdowns', () => {
     expect(button('add').getAttribute('aria-expanded')).toBe('true')
     expect(button('blocks').getAttribute('aria-expanded')).toBe('false')
     expect(document.activeElement).toBe(button('blocks'))
+  })
+
+  it('should leave choices unfocused when opening either category', () => {
+    mountMenus()
+    click(button('add'))
+    click(button('blocks'))
+
+    expect(document.activeElement).toBe(choice('hero').parentElement)
+
+    click(button('inlineBlocks'))
+
+    expect(document.activeElement).toBe(choice('badge').parentElement)
+  })
+
+  it('should select the first enabled choice on the first ArrowDown', () => {
+    mountMenus()
+    click(button('add'))
+    click(button('blocks'))
+    press(document.activeElement as HTMLElement, 'ArrowDown')
+
+    expect(document.activeElement).toBe(choice('hero'))
+    expect(choice('hero').parentElement?.dataset.navigation).toBe('keyboard')
+  })
+
+  it('should select the last choice on the first ArrowUp', () => {
+    mountMenus()
+    click(button('add'))
+    click(button('blocks'))
+    press(document.activeElement as HTMLElement, 'ArrowUp')
+
+    expect(document.activeElement).toBe(choice('callout'))
+  })
+
+  it('should transfer keyboard focus to the hovered choice and switch to pointer styling', () => {
+    mountMenus()
+    click(button('add'))
+    click(button('blocks'))
+    press(document.activeElement as HTMLElement, 'ArrowDown')
+
+    act(() => choice('callout').dispatchEvent(new MouseEvent('pointermove', { bubbles: true })))
+
+    expect(document.activeElement).toBe(choice('callout'))
+    expect(choice('callout').parentElement?.dataset.navigation).toBe('pointer')
+
+    press(choice('callout'), 'ArrowUp')
+
+    expect(document.activeElement).toBe(choice('hero'))
+    expect(choice('hero').parentElement?.dataset.navigation).toBe('keyboard')
   })
 
   it('should preserve existing Add actions', () => {

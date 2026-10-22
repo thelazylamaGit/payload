@@ -129,8 +129,7 @@ function DropDownItems({
 }): React.ReactElement {
   const [activeSubmenu, setActiveSubmenu] = useState<string>()
   const [items, setItems] = useState<Array<React.RefObject<HTMLButtonElement | null>>>()
-  const [highlightedItem, setHighlightedItem] =
-    useState<React.RefObject<HTMLButtonElement | null>>()
+  const [isKeyboardNavigation, setIsKeyboardNavigation] = useState(false)
 
   const registerItem = useCallback(
     (itemRef: React.RefObject<HTMLButtonElement | null>) => {
@@ -157,13 +156,15 @@ function DropDownItems({
       onClose()
     } else if ((key === 'ArrowUp' || key === 'ArrowDown') && enabledItems.length) {
       setActiveSubmenu(undefined)
+      setIsKeyboardNavigation(true)
       const currentIndex = enabledItems.findIndex((item) => item.current === document.activeElement)
       const nextIndex =
         currentIndex === -1
-          ? 0
+          ? key === 'ArrowUp'
+            ? enabledItems.length - 1
+            : 0
           : (currentIndex + (key === 'ArrowUp' ? -1 : 1) + enabledItems.length) %
             enabledItems.length
-      setHighlightedItem(enabledItems[nextIndex])
       enabledItems[nextIndex]?.current?.focus()
     }
   }
@@ -179,32 +180,33 @@ function DropDownItems({
   )
 
   useLayoutEffect(() => {
-    if (items != null && highlightedItem == null) {
-      setHighlightedItem(items.find((item) => item.current && !item.current.disabled))
-    }
-
-    if (highlightedItem != null && highlightedItem?.current != null) {
-      highlightedItem.current.focus()
-    }
-  }, [items, highlightedItem])
+    // Keep keyboard navigation available without preselecting an insertion choice.
+    dropDownRef.current?.focus({ preventScroll: true })
+  }, [dropDownRef])
 
   return (
     <DropDownContext value={contextValue}>
       <div
         className={(itemsContainerClassNames ?? ['toolbar-popup__dropdown-items']).join(' ')}
-        onFocusCapture={(event) => {
+        data-navigation={isKeyboardNavigation ? 'keyboard' : 'pointer'}
+        onKeyDown={handleKeyDown}
+        onPointerMove={(event) => {
           const target = event.target as HTMLElement
 
-          if (event.currentTarget.contains(target)) {
-            const focusedItem = items?.find((item) => item.current === target)
+          // Child-menu portals bubble through React, but belong to a separate list.
+          if (event.pointerType === 'touch' || !event.currentTarget.contains(target)) {
+            return
+          }
 
-            if (focusedItem) {
-              setHighlightedItem(focusedItem)
-            }
+          setIsKeyboardNavigation(false)
+          const hoveredItem = items?.find((item) => item.current?.contains(target))?.current
+
+          if (hoveredItem && !hoveredItem.disabled) {
+            hoveredItem.focus({ preventScroll: true })
           }
         }}
-        onKeyDown={handleKeyDown}
         ref={dropDownRef}
+        tabIndex={-1}
       >
         {children}
       </div>
