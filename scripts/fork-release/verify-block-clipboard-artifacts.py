@@ -45,10 +45,11 @@ for filename in glob.glob(f'{root}/*.tgz'):
                 assert not version.startswith(('workspace:', 'catalog:', 'link:')), (dependency, version)
         if name == '@payloadcms/ui':
             for path in ('dist/styles.css', 'dist/scss/styles.scss', 'dist/assets/index.js',
-                         'dist/elements/ClipboardAction/prepareClipboardIDs.js'):
+                         'dist/forms/Form/fieldReducer.js'):
                 assert 'package/' + path in files, path
             assert not any('compactClipboardBlockSchema' in file or 'stripClipboardMetadata' in file
-                           or 'insertBlockFromClipboard' in file for file in files)
+                           or 'insertBlockFromClipboard' in file or 'prepareClipboardIDs' in file
+                           or 'rowIdentity' in file for file in files)
         elif name == '@payloadcms/translations':
             english = archive.extractfile('package/dist/languages/en.js').read().decode()
             for label in ('Copy Block', 'Paste Block Below', 'Paste Block'):

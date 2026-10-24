@@ -122,170 +122,161 @@ afterAll(async () => {
 })
 
 describe('native clipboard through real SQLite save and reload', () => {
-  it('should preserve cross-collection content and references with fresh structural IDs', async () => {
-    const link = await create('links', { text: 'external relationship' })
-    const source = await create('source', {
-      blocks: [
-        {
-          blockType: 'accordion',
-          body: richText(link.id),
-          items: [{ text: 'outer array' }],
-          text: 'saved source',
-        },
-      ],
-    })
-    const target = await create('destination', {
-      blocks: [{ blockType: 'accordion', text: 'keep destination' }],
-    })
-    const sourceBefore = structuredClone(
-      (await payload.findByID({ id: source.id, collection: 'source', depth: 0 })).blocks,
-    )
-    const req = await createLocalReq({}, payload)
-    const sourceState = (
-      await buildFormState({
-        collectionSlug: 'source',
-        data: source,
-        docPermissions: { fields: true },
-        docPreferences: { fields: {} },
-        mockRSCs: true,
-        operation: 'update',
-        renderAllFields: true,
-        req,
-        schemaPath: 'source',
-        skipClientConfigAuth: true,
+  it.each([0, 1])(
+    'should save/reload native clipboard content with %s existing destination rows',
+    async (existingRows) => {
+      const link = await create('links', { text: 'external relationship' })
+      const source = await create('source', {
+        blocks: [
+          {
+            blockType: 'accordion',
+            body: richText(link.id),
+            items: [{ text: 'outer array' }],
+            text: 'saved source',
+          },
+        ],
       })
-    ).state
-    sourceState['blocks.0.text'].value = 'unsaved source copy'
-    const nativeSourceSchema = payload.collections.source.config.fields.find(
-      (field) => 'name' in field && field.name === 'blocks',
-    ) as any
-    const nativeTargetSchema = payload.collections.destination.config.fields.find(
-      (field) => 'name' in field && field.name === 'blocks',
-    ) as any
-    const { createClientField } = await import('payload')
-    const client = (field: any) =>
-      createClientField({ defaultIDType: 'number', field, i18n: req.i18n, importMap: {} }) as any
-    let clipboard: string
-    vi.stubGlobal('localStorage', {
-      getItem: () => clipboard,
-      setItem: (_key, value) => {
-        clipboard = value
-      },
-    })
-    const t = ((key) => key) as any
-    expect(
-      clipboardCopy({
-        type: 'blocks',
-        blocks: client(nativeSourceSchema).blocks,
-        getDataToCopy: () =>
-          reduceFormStateByPath({ formState: sourceState, path: 'blocks', rowIndex: 0 }),
-        path: 'blocks',
-        rowIndex: 0,
-        t,
-      }),
-    ).toBe(true)
-    let copied: any
-    expect(
-      clipboardPaste({
-        blockInsertion: true,
-        onPaste: (value) => {
-          copied = value
+      const target = await create('destination', {
+        blocks: Array.from({ length: existingRows }, () => ({
+          blockType: 'accordion',
+          text: 'keep destination',
+        })),
+      })
+      const sourceBefore = structuredClone(
+        (await payload.findByID({ id: source.id, collection: 'source', depth: 0 })).blocks,
+      )
+      const req = await createLocalReq({}, payload)
+      const sourceState = (
+        await buildFormState({
+          collectionSlug: 'source',
+          data: source,
+          docPermissions: { fields: true },
+          docPreferences: { fields: {} },
+          mockRSCs: true,
+          operation: 'update',
+          renderAllFields: true,
+          req,
+          schemaPath: 'source',
+          skipClientConfigAuth: true,
+        })
+      ).state
+      sourceState['blocks.0.text'].value = 'unsaved source copy'
+      const nativeSourceSchema = payload.collections.source.config.fields.find(
+        (field) => 'name' in field && field.name === 'blocks',
+      ) as any
+      const nativeTargetSchema = payload.collections.destination.config.fields.find(
+        (field) => 'name' in field && field.name === 'blocks',
+      ) as any
+      const { createClientField } = await import('payload')
+      const client = (field: any) =>
+        createClientField({ defaultIDType: 'number', field, i18n: req.i18n, importMap: {} }) as any
+      let clipboard: string
+      vi.stubGlobal('localStorage', {
+        getItem: () => clipboard,
+        setItem: (_key, value) => {
+          clipboard = value
         },
+      })
+      const t = ((key) => key) as any
+      expect(
+        clipboardCopy({
+          type: 'blocks',
+          blocks: client(nativeSourceSchema).blocks,
+          getDataToCopy: () =>
+            reduceFormStateByPath({ formState: sourceState, path: 'blocks', rowIndex: 0 }),
+          path: 'blocks',
+          rowIndex: 0,
+          t,
+        }),
+      ).toBe(true)
+      let copied: any
+      expect(
+        clipboardPaste({
+          blockInsertion: true,
+          onPaste: (value) => {
+            copied = value
+          },
+          path: 'blocks',
+          schemaBlocks: client(nativeTargetSchema).blocks,
+          t,
+        }),
+      ).toBe(true)
+      const current = (
+        await buildFormState({
+          collectionSlug: 'destination',
+          data: target,
+          docPermissions: { fields: true },
+          docPreferences: { fields: {} },
+          mockRSCs: true,
+          operation: 'update',
+          renderAllFields: true,
+          req,
+          schemaPath: 'destination',
+          skipClientConfigAuth: true,
+        })
+      ).state
+      const before = structuredClone(reduceFieldsToValues(current, true))
+      const next = fieldReducer(current, {
+        type: 'PASTE_ROW',
+        dataFromClipboard: copied,
         path: 'blocks',
-        schemaBlocks: client(nativeTargetSchema).blocks,
-        t,
-      }),
-    ).toBe(true)
-    const data = reduceFieldsToValues(
-      Object.fromEntries(
-        Object.entries(copied.data).map(([key, field]) => [key.slice('blocks.0.'.length), field]),
-      ) as any,
-      true,
-    )
-    const prepared = await buildFormState({
-      clipboard: true,
-      collectionSlug: 'destination',
-      data,
-      docPermissions: { fields: true },
-      docPreferences: { fields: {} },
-      operation: 'update',
-      renderAllFields: true,
-      req,
-      schemaPath: 'destination.blocks.accordion',
-      skipClientConfigAuth: true,
-    })
-    expect(Object.values(prepared.state).some((field) => field.customComponents)).toBe(false)
-    const current = (
-      await buildFormState({
+        position: 'end',
+      })
+      const values: any = reduceFieldsToValues(next, true)
+      expect(values.blocks.slice(0, existingRows)).toEqual(before.blocks || [])
+      expect(values.blocks[existingRows].text).toBe('unsaved source copy')
+      expect(values.blocks[existingRows].id).not.toBe(source.blocks[0].id)
+      const old = source.blocks[0].body.root.children[0].fields
+      const pasted = values.blocks[existingRows].body.root.children[0].fields
+      expect(pasted).toEqual(old)
+      expect(pasted.reference).toBe(link.id)
+      expect(pasted.settings.id).toBe('0123456789abcdef01234567')
+      // Native onChange initializes rendering at the committed path; content was
+      // already copied locally before any request.
+      const initialized = await buildFormState({
         collectionSlug: 'destination',
-        data: target,
+        data: { ...target, blocks: values.blocks },
         docPermissions: { fields: true },
         docPreferences: { fields: {} },
+        formState: next,
         mockRSCs: true,
         operation: 'update',
-        renderAllFields: true,
+        renderAllFields: false,
         req,
         schemaPath: 'destination',
         skipClientConfigAuth: true,
       })
-    ).state
-    const before = structuredClone(reduceFieldsToValues(current, true))
-    const next = fieldReducer(current, {
-      type: 'PASTE_ROW',
-      blockType: 'accordion',
-      path: ['blocks'],
-      position: 'end',
-      subFieldState: prepared.state,
-    })
-    const values: any = reduceFieldsToValues(next, true)
-    expect(values.blocks[0]).toEqual(before.blocks[0])
-    expect(values.blocks[1].text).toBe('unsaved source copy')
-    expect(values.blocks[1].id).not.toBe(source.blocks[0].id)
-    const old = source.blocks[0].body.root.children[0].fields
-    const pasted = values.blocks[1].body.root.children[0].fields
-    expect(pasted.id).not.toBe(old.id)
-    expect(pasted.items[0].id).not.toBe(old.items[0].id)
-    expect(pasted.children[0].id).not.toBe(old.children[0].id)
-    expect(pasted.reference).toBe(link.id)
-    expect(pasted.settings.id).toBe('0123456789abcdef01234567')
-    // Native debounced form-state initialization finishes at the committed path,
-    // while every content value was already available for autosave immediately.
-    const initialized = await buildFormState({
-      collectionSlug: 'destination',
-      data: { ...target, blocks: values.blocks },
-      docPermissions: { fields: true },
-      docPreferences: { fields: {} },
-      formState: next,
-      mockRSCs: true,
-      operation: 'update',
-      renderAllFields: false,
-      req,
-      schemaPath: 'destination',
-      skipClientConfigAuth: true,
-    })
-    const ready = fieldReducer(next, {
-      type: 'MERGE_SERVER_STATE',
-      prevStateRef: { current: next },
-      serverState: initialized.state,
-    })
-    expect(ready.blocks.rows[1].isLoading).toBe(false)
-    expect(ready['blocks.1.body'].customComponents.Field).toBe('Mock')
-    expect(reduceFieldsToValues(ready, true)).toEqual(values)
-    await payload.update({
-      id: target.id,
-      collection: 'destination',
-      data: { blocks: values.blocks },
-    })
-    const reloaded = await payload.findByID({ id: target.id, collection: 'destination', depth: 0 })
-    expect(reloaded.blocks).toHaveLength(2)
-    expect(reloaded.blocks[0]).toEqual(target.blocks[0])
-    expect(reloaded.blocks[1].text).toBe('unsaved source copy')
-    expect(reloaded.blocks[1].id).toBe(values.blocks[1].id)
-    expect(reloaded.blocks[1].items[0].id).toBe(values.blocks[1].items[0].id)
-    expect(reloaded.blocks[1].body.root.children[0].fields).toEqual(pasted)
-    expect(reloaded.blocks[1].body.root.children[0].fields.reference).toBe(link.id)
-    expect(
-      (await payload.findByID({ id: source.id, collection: 'source', depth: 0 })).blocks,
-    ).toEqual(sourceBefore)
-  }, 60000)
+      const ready = fieldReducer(next, {
+        type: 'MERGE_SERVER_STATE',
+        prevStateRef: { current: next },
+        serverState: initialized.state,
+      })
+      expect(ready.blocks.rows[existingRows].isLoading).toBe(false)
+      expect(ready[`blocks.${existingRows}.body`].customComponents.Field).toBe('Mock')
+      expect(reduceFieldsToValues(ready, true)).toEqual(values)
+      await payload.update({
+        id: target.id,
+        collection: 'destination',
+        data: { blocks: values.blocks },
+      })
+      const reloaded = await payload.findByID({
+        id: target.id,
+        collection: 'destination',
+        depth: 0,
+      })
+      expect(reloaded.blocks).toHaveLength(existingRows + 1)
+      expect(reloaded.blocks.slice(0, existingRows)).toEqual(target.blocks)
+      expect(reloaded.blocks[existingRows].text).toBe('unsaved source copy')
+      expect(reloaded.blocks[existingRows].id).toBe(values.blocks[existingRows].id)
+      expect(reloaded.blocks[existingRows].items[0].id).toBe(
+        values.blocks[existingRows].items[0].id,
+      )
+      expect(reloaded.blocks[existingRows].body.root.children[0].fields).toEqual(pasted)
+      expect(reloaded.blocks[existingRows].body.root.children[0].fields.reference).toBe(link.id)
+      expect(
+        (await payload.findByID({ id: source.id, collection: 'source', depth: 0 })).blocks,
+      ).toEqual(sourceBefore)
+    },
+    60000,
+  )
 })

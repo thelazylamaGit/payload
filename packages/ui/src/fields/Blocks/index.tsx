@@ -2,12 +2,11 @@
 import type { BlocksFieldClientComponent, ClientBlock } from 'payload'
 
 import { getTranslation } from '@payloadcms/translations'
-import { deepCopyObjectSimpleWithoutReactComponents, reduceFieldsToValues } from 'payload/shared'
-import React, { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { Fragment, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 
-import type { PastePosition } from '../../elements/ClipboardAction/rowIdentity.js'
 import type { ClipboardPasteData } from '../../elements/ClipboardAction/types.js'
+import type { PastePosition } from '../../forms/Form/types.js'
 
 import { Banner } from '../../elements/Banner/index.js'
 import { Button } from '../../elements/Button/index.js'
@@ -17,14 +16,13 @@ import {
   mergeFormStateFromClipboard,
   reduceFormStateByPath,
 } from '../../elements/ClipboardAction/mergeFormStateFromClipboard.js'
-import { captureRowPath, resolveRowPath } from '../../elements/ClipboardAction/rowIdentity.js'
 import { DraggableSortableItem } from '../../elements/DraggableSortable/DraggableSortableItem/index.js'
 import { DraggableSortable } from '../../elements/DraggableSortable/index.js'
 import { DrawerToggler } from '../../elements/Drawer/index.js'
 import { useDrawerSlug } from '../../elements/Drawer/useDrawerSlug.js'
 import { ErrorPill } from '../../elements/ErrorPill/index.js'
 import { RenderCustomComponent } from '../../elements/RenderCustomComponent/index.js'
-import { useDocumentForm, useForm, useFormSubmitted } from '../../forms/Form/context.js'
+import { useForm, useFormSubmitted } from '../../forms/Form/context.js'
 import { extractRowsAndCollapsedIDs, toggleAllRows } from '../../forms/Form/rowHelpers.js'
 import { NullifyLocaleField } from '../../forms/NullifyField/index.js'
 import { useField } from '../../forms/useField/index.js'
@@ -32,8 +30,6 @@ import { withCondition } from '../../forms/withCondition/index.js'
 import { useConfig } from '../../providers/Config/index.js'
 import { useDocumentInfo } from '../../providers/DocumentInfo/index.js'
 import { useLocale } from '../../providers/Locale/index.js'
-import { useOperation } from '../../providers/Operation/index.js'
-import { useServerFunctions } from '../../providers/ServerFunctions/index.js'
 import { useTranslation } from '../../providers/Translation/index.js'
 import { scrollToID } from '../../utilities/scrollToID.js'
 import './index.scss'
@@ -76,13 +72,7 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
 
   const minRows = (minRowsProp ?? required) ? 1 : 0
 
-  const { id, collectionSlug, globalSlug, setDocFieldPreferences } = useDocumentInfo()
-  const operation = useOperation()
-  const documentForm = useDocumentForm()
-  const { getFormState } = useServerFunctions()
-  const pendingPaste = useRef<AbortController | null>(null)
-  const [isPasting, setIsPasting] = useState(false)
-  useEffect(() => () => pendingPaste.current?.abort(), [])
+  const { setDocFieldPreferences } = useDocumentInfo()
   const {
     addFieldRow,
     dispatchFields,
@@ -275,164 +265,78 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
     [clientBlocks, path, t, type, getFields],
   )
 
-  const pasteAvailability = useRef({ disabled, readOnly })
-  pasteAvailability.current = { disabled, readOnly }
-
-  const pasteBlock = useCallback(
-    async (position: PastePosition) => {
-      // One in-flight paste per field. Do not create a visible row until native
-      // form-state preparation succeeds; cancellation/failure has nothing to undo.
-      if (pendingPaste.current || disabled || readOnly) {
+  const pasteRow = useCallback(
+    (rowIndex: number) => {
+      if (disabled || readOnly) {
         return
       }
-      const before = getFields()
-      const stablePath = captureRowPath({ path, state: before })
-      const targetID =
-        typeof position === 'object' && 'replace' in position ? position.replace : undefined
-      const targetIndex = before[path]?.rows?.findIndex((row) => row.id === targetID)
-      const target = targetID ? before[path]?.rows?.[targetIndex] : undefined
-      let copied: ClipboardPasteData
-      const result = clipboardPaste({
-        blockInsertion: !targetID,
-        canPaste: (data) => {
-          const sourceIndex = data.rowIndex ?? targetIndex
-          const copiedType = data.data[`${data.path}.${sourceIndex}.blockType`]?.value
-          if (targetID && (!target || copiedType !== target.blockType)) {
-            return t('error:invalidClipboardData')
-          }
-          return !targetID && maxRows && (before[path]?.rows?.length ?? 0) >= maxRows
-            ? t('error:blockPasteUnavailable')
-            : true
+      const pasteArgs = {
+        onPaste: (dataFromClipboard: ClipboardPasteData) => {
+          const formState = { ...getFields() }
+          const newState = mergeFormStateFromClipboard({
+            dataFromClipboard,
+            formState,
+            path,
+            rowIndex,
+          })
+          replaceState(newState)
+          setModified(true)
         },
-        onPaste: (data) => {
-          // Native Paste Row can also select the corresponding row from a
-          // compatible whole-field copy. New-row actions require a row copy.
-          copied = { ...data, rowIndex: data.rowIndex ?? targetIndex }
+        path,
+        schemaBlocks: clientBlocksAfterFilter,
+        t,
+      }
+
+      const clipboardResult = clipboardPaste(pasteArgs)
+
+      if (typeof clipboardResult === 'string') {
+        toast.error(clipboardResult)
+      }
+    },
+    [clientBlocksAfterFilter, disabled, getFields, path, readOnly, replaceState, setModified, t],
+  )
+
+  const pasteBlock = useCallback(
+    (position: PastePosition) => {
+      if (disabled || readOnly) {
+        return
+      }
+      const clipboardResult = clipboardPaste({
+        blockInsertion: true,
+        canPaste: () =>
+          maxRows && (getFields()[path]?.rows?.length ?? 0) >= maxRows
+            ? t('error:blockPasteUnavailable')
+            : true,
+        onPaste: (dataFromClipboard) => {
+          dispatchFields({ type: 'PASTE_ROW', dataFromClipboard, maxRows, path, position })
+          setModified(true)
         },
         path,
         schemaBlocks: clientBlocksAfterFilter,
         t,
       })
-      if (typeof result === 'string') {
-        toast.error(result)
-        return
-      }
-      const controller = new AbortController()
-      pendingPaste.current = controller
-      setIsPasting(true)
-      try {
-        const prefix = `${copied.path}.${copied.rowIndex}.`
-        const rowState = Object.fromEntries(
-          Object.entries(copied.data)
-            .filter(([key]) => key.startsWith(prefix))
-            .map(([key, field]) => [key.slice(prefix.length), field]),
-        )
-        const data = reduceFieldsToValues(rowState, true)
-        const blockType = data.blockType as string
-        const response = await getFormState({
-          id,
-          clipboard: true,
-          collectionSlug,
-          data,
-          docPermissions: { fields: true },
-          docPreferences: { fields: {} },
-          documentFormState: deepCopyObjectSimpleWithoutReactComponents(
-            documentForm.getFields?.() ?? before,
-            { excludeFiles: true },
-          ),
-          globalSlug,
-          initialBlockData: data,
-          locale,
-          operation,
-          renderAllFields: true,
-          schemaPath: `${schemaPath}.${blockType}`,
-          signal: controller.signal,
-          skipValidation: true,
-        })
-        if (controller.signal.aborted) {
-          return
-        }
-        const current = getFields()
-        const currentPath = resolveRowPath({ path: stablePath, state: current })
-        const field = current[currentPath]
-        const restricted = pasteAvailability.current
-        const currentRows = field?.rows ?? []
-        const anchor =
-          typeof position === 'object'
-            ? 'replace' in position
-              ? position.replace
-              : position.after
-            : undefined
-        const isReplacement = typeof position === 'object' && 'replace' in position
-        if (
-          !response?.state ||
-          !field ||
-          field.passesCondition === false ||
-          (anchor !== undefined && !currentRows.some((row) => row.id === anchor)) ||
-          (!isReplacement && maxRows && currentRows.length >= maxRows) ||
-          restricted.disabled ||
-          restricted.readOnly ||
-          (Array.isArray(field.blocksFilterOptions) &&
-            !field.blocksFilterOptions.includes(blockType))
-        ) {
-          throw new globalThis.Error('Paste is unavailable')
-        }
-        dispatchFields({
-          type: 'PASTE_ROW',
-          blockType,
-          maxRows,
-          path: stablePath,
-          position,
-          subFieldState: response.state,
-        })
-        setModified(true)
-      } catch (_err) {
-        if (!controller.signal.aborted) {
-          toast.error(t('error:invalidClipboardData'))
-        }
-      } finally {
-        pendingPaste.current = null
-        if (!controller.signal.aborted) {
-          setIsPasting(false)
-        }
+      if (typeof clipboardResult === 'string') {
+        toast.error(clipboardResult)
       }
     },
     [
       clientBlocksAfterFilter,
-      collectionSlug,
       disabled,
       dispatchFields,
-      documentForm,
       getFields,
-      getFormState,
-      globalSlug,
-      id,
-      locale,
       maxRows,
-      operation,
       path,
       readOnly,
-      schemaPath,
       setModified,
       t,
     ],
-  )
-
-  const pasteRow = useCallback(
-    (index: number) => {
-      const row = getFields()[path]?.rows?.[index]
-      if (row) {
-        void pasteBlock({ replace: row.id })
-      }
-    },
-    [getFields, pasteBlock, path],
   )
 
   const pasteBelow = useCallback(
     (index: number) => {
       const row = getFields()[path]?.rows?.[index]
       if (row) {
-        void pasteBlock({ after: row.id })
+        pasteBlock({ after: row.id })
       }
     },
     [getFields, pasteBlock, path],
@@ -538,9 +442,9 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
                     path,
                   })
                 }
-                isPasteBlockDisabled={Boolean(hasMaxRows) || isPasting}
+                isPasteBlockDisabled={Boolean(hasMaxRows)}
                 onPaste={pasteBlocks}
-                onPasteBlock={() => void pasteBlock('end')}
+                onPasteBlock={() => pasteBlock('end')}
                 path={path}
                 type={type}
               />
@@ -597,7 +501,6 @@ const BlocksFieldComponent: BlocksFieldClientComponent = (props) => {
                       fields={blockConfig.fields}
                       hasMaxRows={hasMaxRows}
                       isLoading={isLoading}
-                      isPasting={isPasting}
                       isSortable={isSortable}
                       Label={rows?.[i]?.customComponents?.RowLabel}
                       labels={labels}

@@ -31,7 +31,6 @@ type BlocksFieldProps = {
   fields: ClientField[]
   hasMaxRows?: boolean
   isLoading?: boolean
-  isPasting?: boolean
   isSortable?: boolean
   Label?: React.ReactNode
   labels: Labels
@@ -61,7 +60,6 @@ export const BlockRow: React.FC<BlocksFieldProps> = ({
   fields,
   hasMaxRows,
   isLoading: isLoadingFromProps,
-  isPasting,
   isSortable,
   Label,
   labels,
@@ -154,7 +152,6 @@ export const BlockRow: React.FC<BlocksFieldProps> = ({
               duplicateRow={duplicateRow}
               fields={block.fields}
               hasMaxRows={hasMaxRows}
-              isPasting={isPasting}
               isSortable={isSortable}
               labels={labels}
               moveRow={moveRow}

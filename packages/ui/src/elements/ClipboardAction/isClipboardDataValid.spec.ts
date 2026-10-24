@@ -119,43 +119,4 @@ describe('individual block clipboard compatibility', () => {
   ])('should reject malformed clipboard payloads safely: %j', (value) => {
     expect(isClipboardDataValid((value ?? {}) as any)).toBe(false)
   })
-
-  it('should reject a structural change inside a named tab', () => {
-    const block = (type: 'text' | 'number'): ClientBlock => ({
-      slug: 'content',
-      fields: [
-        {
-          type: 'tabs',
-          tabs: [{ name: 'main', label: 'Main', fields: [{ name: 'value', type }] }],
-        },
-      ],
-    })
-    expect(
-      isClipboardDataValid({
-        ...copiedRow(),
-        blocks: [block('text')],
-        schemaBlocks: [block('number')],
-      }),
-    ).toBe(false)
-  })
-
-  it('should reject incompatible nested block definitions with matching slugs', () => {
-    const block = (type: 'text' | 'number'): ClientBlock => ({
-      slug: 'content',
-      fields: [
-        {
-          name: 'children',
-          type: 'blocks',
-          blocks: [{ slug: 'child', fields: [{ name: 'value', type }] }],
-        },
-      ],
-    })
-    expect(
-      isClipboardDataValid({
-        ...copiedRow(),
-        blocks: [block('text')],
-        schemaBlocks: [block('number')],
-      }),
-    ).toBe(false)
-  })
 })

@@ -8,7 +8,6 @@ import { deepCopyObjectSimpleWithoutReactComponents } from 'payload/shared'
 import type { FieldAction } from './types.js'
 
 import { mergeFormStateFromClipboard } from '../../elements/ClipboardAction/mergeFormStateFromClipboard.js'
-import { resolveRowPath } from '../../elements/ClipboardAction/rowIdentity.js'
 import { mergeServerFormState } from './mergeServerFormState.js'
 import { flattenRows, separateRows } from './rows.js'
 
@@ -260,82 +259,48 @@ export function fieldReducer(state: FormState, action: FieldAction): FormState {
     }
 
     case 'PASTE_ROW': {
-      const path = resolveRowPath({ path: action.path, state })
+      const { dataFromClipboard, maxRows, path, position } = action
       const field = state[path]
+      const blockType = dataFromClipboard.data[
+        `${dataFromClipboard.path}.${dataFromClipboard.rowIndex}.blockType`
+      ]?.value as string
+      const rows = field?.rows ?? []
+      const anchor =
+        typeof position === 'object'
+          ? rows.findIndex((row) => row.id === position.after)
+          : undefined
       if (
         !field ||
         field.passesCondition === false ||
-        (Array.isArray(field.blocksFilterOptions) &&
-          !field.blocksFilterOptions.includes(action.blockType))
+        !blockType ||
+        (maxRows && rows.length >= maxRows) ||
+        anchor === -1 ||
+        (Array.isArray(field.blocksFilterOptions) && !field.blocksFilterOptions.includes(blockType))
       ) {
         return state
       }
-      const rows = field.rows ?? []
-      const replacing = typeof action.position === 'object' && 'replace' in action.position
-      const anchor =
-        typeof action.position === 'object'
-          ? 'replace' in action.position
-            ? action.position.replace
-            : action.position.after
-          : undefined
-      const anchorIndex = anchor === undefined ? -1 : rows.findIndex((row) => row.id === anchor)
-      if (
-        (anchor !== undefined && anchorIndex < 0) ||
-        (!replacing && action.maxRows && rows.length >= action.maxRows) ||
-        (replacing && rows[anchorIndex].blockType !== action.blockType)
-      ) {
-        return state
-      }
-      const rowIndex = replacing
-        ? anchorIndex
-        : anchor !== undefined
-          ? anchorIndex + 1
-          : action.position === 'start'
-            ? 0
-            : rows.length
-      // ADD_ROW and native paste run in one reducer transition. An empty row is
-      // never published to React, onChange, live preview, or autosave.
-      let next = replacing
-        ? { ...state }
-        : fieldReducer(state, {
-            type: 'ADD_ROW',
-            blockType: action.blockType,
-            path,
-            rowIndex,
-          })
-      if (replacing) {
-        const prefix = `${path}.${rowIndex}.`
-        for (const key of Object.keys(next)) {
-          if (key.startsWith(prefix) && key !== `${prefix}id`) {
-            delete next[key]
-          }
-        }
-      }
-      next = mergeFormStateFromClipboard({
-        dataFromClipboard: {
-          type: 'blocks',
-          blocks: [],
-          data: Object.fromEntries(
-            Object.entries(action.subFieldState).map(([key, value]) => [
-              `clipboard.0.${key}`,
-              value,
-            ]),
-          ),
-          path: 'clipboard',
-          rowIndex: 0,
-        },
+      const rowIndex = anchor !== undefined ? anchor + 1 : position === 'start' ? 0 : rows.length
+      // Compose native operations in one transition. No empty row is published
+      // to onChange or autosave, and native ID handling remains unchanged.
+      const next = fieldReducer(state, { type: 'ADD_ROW', blockType, path, rowIndex })
+      const pasted = mergeFormStateFromClipboard({
+        dataFromClipboard,
         formState: next,
         path,
         rowIndex,
       })
-      // Never mutate metadata belonging to the previous reducer state.
-      next[path] = {
-        ...next[path],
-        rows: next[path].rows.map((row, index) =>
-          index === rowIndex ? { ...row, isLoading: true } : row,
-        ),
+      // New rows have not rendered at the destination yet, even if a source
+      // field used the same numeric path. Let native onChange initialize them.
+      for (const key of Object.keys(pasted)) {
+        if (key.startsWith(`${path}.${rowIndex}.`)) {
+          const { lastRenderedPath: _, ...field } = pasted[key]
+          pasted[key] = field
+          if (field.rows) {
+            field.rows = field.rows.map(({ lastRenderedPath: _, ...row }) => row)
+          }
+        }
       }
-      return next
+      return pasted
     }
 
     case 'REMOVE': {

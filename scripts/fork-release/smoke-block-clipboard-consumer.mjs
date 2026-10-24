@@ -81,8 +81,7 @@ try {
     `
     import assert from 'node:assert/strict'
     import { en } from '@payloadcms/translations/languages/en'
-    import { getTranslation, initI18n } from '@payloadcms/translations'
-    import { createClientField } from 'payload'
+    import { getTranslation } from '@payloadcms/translations'
     import { reduceToSerializableFields } from '@payloadcms/ui/shared'
     assert.equal(en.translations.general.copyBlock, 'Copy Block')
     assert.equal(en.translations.general.pasteBlockBelow, 'Paste Block Below')
@@ -95,52 +94,29 @@ try {
     const entry = import.meta.resolve('@payloadcms/ui')
     const { fieldReducer } = await import(new URL('../../forms/Form/fieldReducer.js', entry))
     const { isClipboardDataValid } = await import(new URL('../../elements/ClipboardAction/isClipboardDataValid.js', entry))
-    const { prepareClipboardIDs } = await import(new URL('../../elements/ClipboardAction/prepareClipboardIDs.js', entry))
     const accordion = { slug: 'accordion', fields: [{ name: 'text', type: 'text' }] }
     assert.equal(isClipboardDataValid({ type: 'blocks', path: 'source', fieldPath: 'layout', rowIndex: 0,
       blocks: [accordion, { slug: 'image', fields: [] }], schemaBlocks: [accordion],
       data: { 'source.0.blockType': { value: 'accordion' } },
     }), true)
-    const i18n = await initI18n({ config: { fallbackLanguage: 'en', supportedLanguages: { en } } })
     const current = {
       layout: { value: 1, valid: true, rows: [{ id: 'existing', blockType: 'accordion' }] },
       'layout.0.id': { value: 'existing', valid: true },
       'layout.0.text': { value: 'keep unsaved destination', valid: true },
     }
-    const prepared = { text: { value: 'unsaved copy', valid: true } }
-    const result = fieldReducer(current, { type: 'PASTE_ROW', path: ['layout'], position: { after: 'existing' },
-      blockType: 'accordion', subFieldState: prepared,
+    const dataFromClipboard = { type: 'blocks', blocks: [accordion], path: 'source', rowIndex: 0, data: {
+      'source.0.blockType': { value: 'accordion', valid: true },
+      'source.0.text': { value: 'unsaved copy', valid: true },
+    } }
+    const result = fieldReducer(current, { type: 'PASTE_ROW', path: 'layout', position: { after: 'existing' },
+      dataFromClipboard,
     })
     assert.equal(result.layout.rows.length, 2)
     assert.equal(result['layout.0.text'].value, 'keep unsaved destination')
     assert.equal(result['layout.1.text'].value, 'unsaved copy')
     assert.equal(result.layout.rows[1].isLoading, true)
     assert.equal(current.layout.rows.length, 1)
-    for (const referenceList of ['blocks', 'blockReferences']) {
-      const nativeField = createClientField({ defaultIDType: 'number', importMap: {}, i18n,
-        field: { name: 'nested', type: 'blocks', blocks: [], [referenceList]: ['child'] },
-      })
-      assert.ok(nativeField)
-    }
-    const bodyField = { name: 'body', type: 'richText' }
-    const data = { body: { root: { children: [{ type: 'block', fields: {
-      id: 'old-panel', blockType: 'panel', items: [{ id: 'old-item', text: 'unchanged' }],
-      reference: { id: 'keep-document' },
-    } }] } } }
-    const value = prepareClipboardIDs({ config: { blocks: [] }, data, fields: [bodyField],
-      schemaMap: new Map([
-        ['pages.layout.accordion.body', bodyField],
-        ['pages.layout.accordion.body.lexical_internal_feature.blocks.lexical_blocks.panel.fields', { fields: [
-          { name: 'items', type: 'array', fields: [{ name: 'text', type: 'text' }] },
-          { name: 'reference', type: 'relationship', relationTo: 'pages' },
-        ] }],
-      ]),
-    })
-    assert.notEqual(value.body.root.children[0].fields.id, 'old-panel')
-    assert.notEqual(value.body.root.children[0].fields.items[0].id, 'old-item')
-    assert.equal(value.body.root.children[0].fields.reference.id, 'keep-document')
-    assert.equal(data.body.root.children[0].fields.id, 'old-panel')
-    console.log('Cold consumer, compiled exports, atomic native paste, selected-row compatibility, and on-demand IDs passed')
+    console.log('Cold consumer, compiled exports, atomic native paste, selected-row compatibility, and native ID behavior passed')
   `,
   )
   execFileSync('node', ['smoke.mjs'], { cwd: temp, stdio: 'inherit' })

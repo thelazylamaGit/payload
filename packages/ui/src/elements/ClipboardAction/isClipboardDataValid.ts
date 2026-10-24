@@ -21,23 +21,21 @@ export function isClipboardDataValid({
     !data ||
     typeof data !== 'object' ||
     Array.isArray(data) ||
-    typeof path !== 'string' ||
     !path ||
-    !['array', 'blocks'].includes(args.type) ||
+    !args.type ||
     (rowIndex !== undefined && (!Number.isInteger(rowIndex) || rowIndex < 0))
   ) {
     return false
   }
 
   if (args.type === 'blocks') {
-    let blocksFromClipboard = args.blocks
-
     if (
       !Array.isArray(args.blocks) ||
       args.blocks.some((block) => !block || typeof block.slug !== 'string')
     ) {
       return false
     }
+    let blocksFromClipboard = args.blocks
 
     if (typeof rowIndex === 'number') {
       const blockType = data?.[`${path}.${rowIndex}.blockType`]?.value
@@ -69,77 +67,19 @@ function isClipboardFieldsValid({
   fieldsFromClipboard: ClientField[]
   fieldsFromConfig?: ClientField[]
 }): boolean {
-  if (
-    !Array.isArray(fieldsFromClipboard) ||
-    !Array.isArray(fieldsFromConfig) ||
-    fieldsFromClipboard.length !== fieldsFromConfig.length
-  ) {
+  if (!fieldsFromConfig || fieldsFromClipboard.length !== fieldsFromConfig?.length) {
     return false
   }
 
   return fieldsFromClipboard.every((clipboardField, i) => {
     const configField = fieldsFromConfig[i]
 
-    if (!clipboardField || !configField || clipboardField.type !== configField.type) {
+    if (clipboardField.type !== configField.type) {
       return false
     }
 
     const affectsData = fieldAffectsData(clipboardField) && fieldAffectsData(configField)
     if (affectsData && clipboardField.name !== configField.name) {
-      return false
-    }
-
-    if (clipboardField.type === 'tabs' && configField.type === 'tabs') {
-      return (
-        Array.isArray(clipboardField.tabs) &&
-        clipboardField.tabs.length === configField.tabs.length &&
-        clipboardField.tabs.every((tab, index) => {
-          const target = configField.tabs[index]
-          return (
-            ('name' in tab ? tab.name : undefined) ===
-              ('name' in target ? target.name : undefined) &&
-            isClipboardFieldsValid({
-              fieldsFromClipboard: tab.fields,
-              fieldsFromConfig: target.fields,
-            })
-          )
-        })
-      )
-    }
-    if (clipboardField.type === 'blocks' && configField.type === 'blocks') {
-      const source = clipboardField.blockReferences ?? clipboardField.blocks ?? []
-      const target = configField.blockReferences ?? configField.blocks ?? []
-      return (
-        Array.isArray(source) &&
-        source.length === target.length &&
-        source.every((block) => {
-          if (typeof block === 'string') {
-            return target.includes(block)
-          }
-          const destination = target.find(
-            (entry) => typeof entry !== 'string' && entry.slug === block.slug,
-          )
-          return (
-            destination &&
-            typeof destination !== 'string' &&
-            isClipboardBlocksValid({
-              blocksFromClipboard: [block],
-              blocksFromConfig: [destination],
-            })
-          )
-        })
-      )
-    }
-    if ('hasMany' in clipboardField || 'hasMany' in configField) {
-      if (Boolean(clipboardField['hasMany']) !== Boolean(configField['hasMany'])) {
-        return false
-      }
-    }
-    if (
-      'relationTo' in clipboardField &&
-      'relationTo' in configField &&
-      JSON.stringify(clipboardField.relationTo) !== JSON.stringify(configField.relationTo)
-    ) {
       return false
     }
 
@@ -167,13 +107,6 @@ function isClipboardBlocksValid({
   blocksFromClipboard: ClientBlock[]
   blocksFromConfig?: ClientBlock[]
 }) {
-  if (
-    !Array.isArray(blocksFromClipboard) ||
-    !Array.isArray(blocksFromConfig) ||
-    blocksFromClipboard.some((block) => !block || typeof block.slug !== 'string')
-  ) {
-    return false
-  }
   const configBlockMap = new Map(blocksFromConfig?.map((block) => [block.slug, block]))
 
   if (!configBlockMap.size) {
