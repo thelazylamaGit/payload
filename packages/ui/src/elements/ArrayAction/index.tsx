@@ -23,6 +23,8 @@ export type Props = {
   isPasteDisabled?: boolean
   isSortable?: boolean
   moveRow: (from: number, to: number) => void
+  pasteBelow?: (index: number) => void
+  pasteBelowLabel?: string
   pasteLabel?: string
   pasteRow: (index: number) => void
   removeRow: (index: number) => void
@@ -39,6 +41,8 @@ export const ArrayAction: React.FC<Props> = ({
   isPasteDisabled,
   isSortable,
   moveRow,
+  pasteBelow,
+  pasteBelowLabel,
   pasteLabel,
   pasteRow,
   removeRow,
@@ -126,6 +130,18 @@ export const ArrayAction: React.FC<Props> = ({
             >
               <ClipboardActionLabel isPaste isRow label={pasteLabel} />
             </PopupList.Button>
+            {pasteBelow && (
+              <PopupList.Button
+                className={`${baseClass}__action ${baseClass}__paste-below`}
+                disabled={isPasteDisabled || hasMaxRows}
+                onClick={() => {
+                  pasteBelow(index)
+                  close()
+                }}
+              >
+                <ClipboardActionLabel isPaste isRow label={pasteBelowLabel} />
+              </PopupList.Button>
+            )}
             <PopupList.Button
               className={`${baseClass}__action ${baseClass}__remove`}
               onClick={() => {

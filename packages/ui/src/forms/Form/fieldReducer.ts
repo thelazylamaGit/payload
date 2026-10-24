@@ -7,6 +7,8 @@ import { deepCopyObjectSimpleWithoutReactComponents } from 'payload/shared'
 
 import type { FieldAction } from './types.js'
 
+import { mergeFormStateFromClipboard } from '../../elements/ClipboardAction/mergeFormStateFromClipboard.js'
+import { resolveRowPath } from '../../elements/ClipboardAction/rowIdentity.js'
 import { mergeServerFormState } from './mergeServerFormState.js'
 import { flattenRows, separateRows } from './rows.js'
 
@@ -255,6 +257,85 @@ export function fieldReducer(state: FormState, action: FieldAction): FormState {
       }
 
       return newState
+    }
+
+    case 'PASTE_ROW': {
+      const path = resolveRowPath({ path: action.path, state })
+      const field = state[path]
+      if (
+        !field ||
+        field.passesCondition === false ||
+        (Array.isArray(field.blocksFilterOptions) &&
+          !field.blocksFilterOptions.includes(action.blockType))
+      ) {
+        return state
+      }
+      const rows = field.rows ?? []
+      const replacing = typeof action.position === 'object' && 'replace' in action.position
+      const anchor =
+        typeof action.position === 'object'
+          ? 'replace' in action.position
+            ? action.position.replace
+            : action.position.after
+          : undefined
+      const anchorIndex = anchor === undefined ? -1 : rows.findIndex((row) => row.id === anchor)
+      if (
+        (anchor !== undefined && anchorIndex < 0) ||
+        (!replacing && action.maxRows && rows.length >= action.maxRows) ||
+        (replacing && rows[anchorIndex].blockType !== action.blockType)
+      ) {
+        return state
+      }
+      const rowIndex = replacing
+        ? anchorIndex
+        : anchor !== undefined
+          ? anchorIndex + 1
+          : action.position === 'start'
+            ? 0
+            : rows.length
+      // ADD_ROW and native paste run in one reducer transition. An empty row is
+      // never published to React, onChange, live preview, or autosave.
+      let next = replacing
+        ? { ...state }
+        : fieldReducer(state, {
+            type: 'ADD_ROW',
+            blockType: action.blockType,
+            path,
+            rowIndex,
+          })
+      if (replacing) {
+        const prefix = `${path}.${rowIndex}.`
+        for (const key of Object.keys(next)) {
+          if (key.startsWith(prefix) && key !== `${prefix}id`) {
+            delete next[key]
+          }
+        }
+      }
+      next = mergeFormStateFromClipboard({
+        dataFromClipboard: {
+          type: 'blocks',
+          blocks: [],
+          data: Object.fromEntries(
+            Object.entries(action.subFieldState).map(([key, value]) => [
+              `clipboard.0.${key}`,
+              value,
+            ]),
+          ),
+          path: 'clipboard',
+          rowIndex: 0,
+        },
+        formState: next,
+        path,
+        rowIndex,
+      })
+      // Never mutate metadata belonging to the previous reducer state.
+      next[path] = {
+        ...next[path],
+        rows: next[path].rows.map((row, index) =>
+          index === rowIndex ? { ...row, isLoading: true } : row,
+        ),
+      }
+      return next
     }
 
     case 'REMOVE': {

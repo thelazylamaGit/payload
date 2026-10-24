@@ -53,6 +53,17 @@ export function clipboardPaste({
     return t('error:invalidClipboardData')
   }
 
+  // Earlier fork copies carried render-time schemas. Discard that obsolete
+  // field metadata at the clipboard boundary, including for native Paste Field.
+  // Document values (including user fields named clipboardBlocks) stay intact.
+  if (dataToPaste?.data && typeof dataToPaste.data === 'object') {
+    for (const field of Object.values(dataToPaste.data)) {
+      if (field && typeof field === 'object' && 'clipboardBlocks' in field) {
+        delete field.clipboardBlocks
+      }
+    }
+  }
+
   if (blockInsertion) {
     if (
       dataToPaste?.type !== 'blocks' ||

@@ -58,8 +58,3 @@ export type ClipboardPasteActionValidateArgs = {
     }
 ) &
   ClipboardPasteData
-
-// UI-only metadata travels with the native form-state clipboard, never with document data.
-export type RichTextClipboardMetadata = {
-  clipboardBlocks?: ClientBlock[]
-}

@@ -68,8 +68,7 @@ try {
     '--project',
     'unit',
     'packages/ui/src/elements/ClipboardAction',
-    'packages/ui/src/forms/Form/stripClipboardMetadata.spec.ts',
-    'packages/ui/src/providers/ServerFunctions/clipboardMetadata.spec.ts',
+    'test/clipboard',
     ...(shouldIncludeLexical
       ? [
           'packages/richtext-lexical/src/features/blocks/client/component/BlockContent.spec.ts',

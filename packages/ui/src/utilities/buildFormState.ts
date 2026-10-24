@@ -10,6 +10,7 @@ import type {
 import { canAccessAdmin, formatErrors, UnauthorizedError } from 'payload'
 import { getSelectMode, reduceFieldsToValues } from 'payload/shared'
 
+import { prepareClipboardIDs } from '../elements/ClipboardAction/prepareClipboardIDs.js'
 import { fieldSchemasToFormState } from '../forms/fieldSchemasToFormState/index.js'
 import { renderField } from '../forms/fieldSchemasToFormState/renderField.js'
 import { getClientConfig } from './getClientConfig.js'
@@ -57,8 +58,13 @@ type BuildFormStateErrorResult = {
 
 export type BuildFormStateResult = BuildFormStateErrorResult | BuildFormStateSuccessResult
 
+export type ClipboardFormStateArgs = {
+  /** Prepare a copied block off-form before committing it atomically. */
+  clipboard?: boolean
+} & BuildFormStateArgs
+
 export const buildFormStateHandler: ServerFunction<
-  BuildFormStateArgs,
+  ClipboardFormStateArgs,
   Promise<BuildFormStateResult>
 > = async (args) => {
   const { req } = args
@@ -86,7 +92,7 @@ export const buildFormStateHandler: ServerFunction<
 }
 
 export const buildFormState = async (
-  args: BuildFormStateArgs,
+  args: ClipboardFormStateArgs,
 ): Promise<BuildFormStateSuccessResult> => {
   const {
     id: idFromArgs,
@@ -173,7 +179,7 @@ export const buildFormState = async (
 
   // If there is form state but no data, deduce data from that form state, e.g. on initial load
   // Otherwise, use the incoming data as the source of truth, e.g. on subsequent saves
-  const data = incomingData || reduceFieldsToValues(formState, true)
+  let data = incomingData || reduceFieldsToValues(formState, true)
 
   let documentData = undefined
 
@@ -202,6 +208,13 @@ export const buildFormState = async (
       ? fieldOrEntityConfig.fields
       : [fieldOrEntityConfig]
 
+  if (args.clipboard) {
+    if (!('slug' in fieldOrEntityConfig) || !('fields' in fieldOrEntityConfig)) {
+      throw new Error('Clipboard preparation requires a destination block schema')
+    }
+    data = prepareClipboardIDs({ config, data, fields, schemaMap })
+  }
+
   // Ensure data.id is present during form state requests, where the data
   // is passed from the client as an argument, without the ID
   if (!data.id && id) {
@@ -224,7 +237,11 @@ export const buildFormState = async (
     previousFormState: formState,
     readOnly,
     renderAllFields,
-    renderFieldFn: (renderFieldArgs) => renderField({ ...renderFieldArgs, user }),
+    // A prepared row has no final numeric path until the reducer commits it.
+    // Native onChange renders its components at that final path after insertion.
+    renderFieldFn: args.clipboard
+      ? undefined
+      : (renderFieldArgs) => renderField({ ...renderFieldArgs, user }),
     req,
     schemaPath,
     select,

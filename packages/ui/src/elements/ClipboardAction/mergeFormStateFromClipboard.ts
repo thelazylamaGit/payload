@@ -95,6 +95,7 @@ export function mergeFormStateFromClipboard({
     const rowIDFromClipboard = dataFromClipboard[`${pathToReplace}.id`]?.value as string
     const hasRows = formState[path].rows?.length
 
+    formState[path] = { ...formState[path] }
     formState[path].rows = [
       {
         ...(hasRows && isArray ? formState[path].rows[0] : {}),
@@ -137,17 +138,28 @@ export function mergeFormStateFromClipboard({
     const customComponents = isArray ? formState[newPath]?.customComponents : undefined
     const validate = isArray ? formState[newPath]?.validate : undefined
 
-    // If this is an ID field, generate a new ID to prevent duplicates
-    if (clipboardPath.endsWith('.id') && dataFromClipboard[clipboardPath]?.value) {
+    // Form row metadata identifies structural IDs; an ordinary group field named
+    // id is user data, even when its value happens to look like an ObjectId.
+    const segments = clipboardPath.split('.')
+    const index = segments[segments.length - 2]
+    const parent = segments.slice(0, -2).join('.')
+    const isRowID =
+      clipboardPath === `${pathToReplace}.id` ||
+      (/^\d+$/.test(index) && Boolean(dataFromClipboard[parent]?.rows?.[Number(index)]))
+    const copiedField = { ...dataFromClipboard[clipboardPath] }
+    if (Array.isArray(copiedField.rows)) {
+      copiedField.rows = copiedField.rows.map((row) => ({ ...row }))
+    }
+    if (clipboardPath.endsWith('.id') && isRowID && dataFromClipboard[clipboardPath]?.value) {
       const oldID = dataFromClipboard[clipboardPath].value as string
-      if (typeof oldID === 'string' && ObjectId.isValid(oldID)) {
+      if (typeof oldID === 'string') {
         const newID = new ObjectId().toHexString()
         idReplacements.set(clipboardPath, newID)
 
         formState[newPath] = {
           customComponents,
           validate,
-          ...dataFromClipboard[clipboardPath],
+          ...copiedField,
           initialValue: newID,
           value: newID,
         }
@@ -158,7 +170,7 @@ export function mergeFormStateFromClipboard({
     formState[newPath] = {
       customComponents,
       validate,
-      ...dataFromClipboard[clipboardPath],
+      ...copiedField,
     }
   }
 

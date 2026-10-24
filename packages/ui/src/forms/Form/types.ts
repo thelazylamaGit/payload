@@ -10,6 +10,7 @@ import type {
 import type React from 'react'
 import type { Dispatch } from 'react'
 
+import type { PastePosition, RowPath } from '../../elements/ClipboardAction/rowIdentity.js'
 import type { AcceptValues } from './mergeServerFormState.js'
 
 export type Preferences = {
@@ -191,6 +192,16 @@ export type REMOVE_ROW = {
   type: 'REMOVE_ROW'
 }
 
+/** Commit a fully prepared clipboard row using the latest state and stable row IDs. */
+export type PASTE_ROW = {
+  blockType: string
+  maxRows?: number
+  path: RowPath
+  position: PastePosition
+  subFieldState: FormState
+  type: 'PASTE_ROW'
+}
+
 export type ADD_ROW = {
   blockType?: string
   path: string
@@ -251,6 +262,7 @@ export type FieldAction =
   | MERGE_SERVER_STATE
   | MODIFY_CONDITION
   | MOVE_ROW
+  | PASTE_ROW
   | REMOVE
   | REMOVE_ROW
   | REPLACE_ROW

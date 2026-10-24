@@ -31,11 +31,13 @@ type BlocksFieldProps = {
   fields: ClientField[]
   hasMaxRows?: boolean
   isLoading?: boolean
+  isPasting?: boolean
   isSortable?: boolean
   Label?: React.ReactNode
   labels: Labels
   moveRow: (fromIndex: number, toIndex: number) => void
   parentPath: string
+  pasteBelow: (rowIndex: number) => void
   pasteRow: (rowIndex: number) => void
   path: string
   permissions: SanitizedFieldPermissions
@@ -59,12 +61,14 @@ export const BlockRow: React.FC<BlocksFieldProps> = ({
   fields,
   hasMaxRows,
   isLoading: isLoadingFromProps,
+  isPasting,
   isSortable,
   Label,
   labels,
   listeners,
   moveRow,
   parentPath,
+  pasteBelow,
   pasteRow,
   path,
   permissions,
@@ -150,9 +154,11 @@ export const BlockRow: React.FC<BlocksFieldProps> = ({
               duplicateRow={duplicateRow}
               fields={block.fields}
               hasMaxRows={hasMaxRows}
+              isPasting={isPasting}
               isSortable={isSortable}
               labels={labels}
               moveRow={moveRow}
+              pasteBelow={pasteBelow}
               pasteRow={pasteRow}
               removeRow={removeRow}
               rowCount={rowCount}

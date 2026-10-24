@@ -55,7 +55,6 @@ import {
 import { errorMessages } from './errorMessages.js'
 import { fieldReducer } from './fieldReducer.js'
 import { initContextState } from './initContextState.js'
-import { stripClipboardMetadata } from './stripClipboardMetadata.js'
 
 const baseClass = 'form'
 
@@ -314,7 +313,7 @@ export const Form: React.FC<FormProps> = (props) => {
       const data = reduceFieldsToValues(contextRef.current.fields, true)
 
       const serializableFormState = deepCopyObjectSimpleWithoutReactComponents(
-        stripClipboardMetadata(contextRef.current.fields),
+        contextRef.current.fields,
         {
           excludeFiles: true,
         },
@@ -846,12 +845,9 @@ export const Form: React.FC<FormProps> = (props) => {
         for (const onChangeFn of onChange) {
           // Edit view default onChange is in packages/ui/src/views/Edit/index.tsx. This onChange usually sends a form state request
           serverState = await onChangeFn({
-            formState: deepCopyObjectSimpleWithoutReactComponents(
-              stripClipboardMetadata(formState),
-              {
-                excludeFiles: true,
-              },
-            ),
+            formState: deepCopyObjectSimpleWithoutReactComponents(formState, {
+              excludeFiles: true,
+            }),
             submitted,
           })
         }

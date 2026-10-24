@@ -84,4 +84,17 @@ describe('native clipboard menus', () => {
     )
     expect(html).not.toContain('general:pasteBlock')
   })
+  it('should keep native Paste Row available at the limit and disable only Paste Below', () => {
+    const html = renderToStaticMarkup(
+      createElement(ArrayAction, {
+        ...rowProps,
+        hasMaxRows: true,
+        pasteBelow: vi.fn(),
+        pasteBelowLabel: 'Paste Block Below',
+      }),
+    )
+    expect(html).toContain('general:pasteRow')
+    expect(html).toMatch(/<button>(?:(?!<\/button>).)*general:pasteRow/s)
+    expect(html).toMatch(/<button disabled="">.*Paste Block Below/s)
+  })
 })

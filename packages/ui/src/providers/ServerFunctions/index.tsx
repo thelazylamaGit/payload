@@ -1,6 +1,5 @@
 import type {
   AdminViewServerPropsOnly,
-  BuildFormStateArgs,
   BuildTableStateArgs,
   Data,
   DocumentPreferences,
@@ -21,7 +20,10 @@ import type {
   RenderFieldServerFnArgs,
   RenderFieldServerFnReturnType,
 } from '../../forms/fieldSchemasToFormState/serverFunctions/renderFieldServerFn.js'
-import type { buildFormStateHandler } from '../../utilities/buildFormState.js'
+import type {
+  buildFormStateHandler,
+  ClipboardFormStateArgs,
+} from '../../utilities/buildFormState.js'
 import type { buildTableStateHandler } from '../../utilities/buildTableState.js'
 import type { CopyDataFromLocaleArgs } from '../../utilities/copyDataFromLocale.js'
 import type { getFolderResultsComponentAndDataHandler } from '../../utilities/getFolderResultsComponentAndData.js'
@@ -32,12 +34,10 @@ import type {
   SchedulePublishHandlerArgs,
 } from '../../utilities/schedulePublishHandler.js'
 
-import { stripClipboardMetadataFromRequest } from '../../forms/Form/stripClipboardMetadata.js'
-
 type GetFormStateClient = (
   args: {
     signal?: AbortSignal
-  } & Omit<BuildFormStateArgs, 'clientConfig' | 'req'>,
+  } & Omit<ClipboardFormStateArgs, 'clientConfig' | 'req'>,
 ) => ReturnType<typeof buildFormStateHandler>
 
 type SchedulePublishClient = (
@@ -221,7 +221,7 @@ export const ServerFunctionsProvider: React.FC<{
         if (!remoteSignal?.aborted) {
           const result = (await serverFunction({
             name: 'form-state',
-            args: stripClipboardMetadataFromRequest({ fallbackLocale: false, ...rest }),
+            args: { fallbackLocale: false, ...rest },
           })) as Awaited<ReturnType<typeof buildFormStateHandler>> // TODO: infer this type when `strictNullChecks` is enabled
 
           if (!remoteSignal?.aborted) {
@@ -267,10 +267,10 @@ export const ServerFunctionsProvider: React.FC<{
       try {
         const result = (await serverFunction({
           name: 'render-document',
-          args: stripClipboardMetadataFromRequest({
+          args: {
             fallbackLocale: false,
             ...rest,
-          }) as Parameters<RenderDocumentServerFunctionHookFn>[0],
+          } as Parameters<RenderDocumentServerFunctionHookFn>[0],
         })) as Awaited<ReturnType<RenderDocumentServerFunctionHookFn>> // TODO: infer this type when `strictNullChecks` is enabled
 
         return result

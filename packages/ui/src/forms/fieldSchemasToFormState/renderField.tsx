@@ -1,5 +1,4 @@
 import type {
-  ClientBlock,
   ClientComponentProps,
   ClientField,
   FieldPaths,
@@ -11,7 +10,6 @@ import { getTranslation } from '@payloadcms/translations'
 import { createClientField, MissingEditorProp } from 'payload'
 import { fieldIsHiddenOrDisabled } from 'payload/shared'
 
-import type { RichTextClipboardMetadata } from '../../elements/ClipboardAction/types.js'
 import type { RenderFieldMethod } from './types.js'
 
 import { RenderServerComponent } from '../../elements/RenderServerComponent/index.js'
@@ -244,32 +242,6 @@ export const renderField: RenderFieldMethod = ({
 
   switch (fieldConfig.type) {
     case 'richText': {
-      // Lexical already adds embedded block schemas to the native field schema map.
-      // Keep client-safe schemas with form state so copying a collapsed editor also
-      // has enough information to refresh structural IDs without touching references.
-      const clipboardBlocks: ClientBlock[] = []
-      for (const [key, schema] of fieldSchemaMap) {
-        if (
-          key.startsWith(`${schemaPath}.lexical_internal_feature.`) &&
-          'type' in schema &&
-          schema.type === 'blocks'
-        ) {
-          const blocks = (schema.blockReferences ?? schema.blocks)
-            .map((block) => (typeof block === 'string' ? req.payload.blocks[block] : block))
-            .filter(Boolean)
-          const clientSchema = createClientField({
-            defaultIDType: req.payload.config.db.defaultIDType,
-            field: { ...schema, blockReferences: undefined, blocks },
-            i18n: req.i18n,
-            importMap: req.payload.importMap,
-          })
-          if (clientSchema.type === 'blocks') {
-            clipboardBlocks.push(...(clientSchema.blocks ?? []))
-          }
-        }
-      }
-      const clipboardFieldState = fieldState as RichTextClipboardMetadata
-      clipboardFieldState.clipboardBlocks = clipboardBlocks
       if (!fieldConfig?.editor) {
         throw new MissingEditorProp(fieldConfig) // while we allow disabling editor functionality, you should not have any richText fields defined if you do not have an editor
       }

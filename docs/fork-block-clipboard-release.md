@@ -1,157 +1,90 @@
-# Native block clipboard fork release
+# Native block clipboard fork
 
-This fork's UI, translations, core Payload, and Lexical manifests are **3.91.0**. The feature changes only `@payloadcms/ui` and `@payloadcms/translations`. Core Payload and Lexical are built as needed, but neither needs a replacement artifact. The existing Lexical patches and their release workflow are untouched.
+The UI and translations packages remain aligned with Payload **3.91.0**. The existing Lexical package is unchanged.
 
 ## Behavior
 
-Ordinary Blocks row menus offer **Copy Block** and **Paste Block Below**. Paste inserts immediately after that row. The field dropdown also offers **Paste Block**, which appends and works on an empty field. Existing destination values, row order, and IDs survive insertion. The copy reads current form state, including unsaved settings and rich-text JSON. Insertions refresh structural block/array IDs, including inside Lexical block nodes, while preserving relationship/upload/document IDs.
+- A copied block row is checked against its destination definition. Unrelated block types allowed by either collection do not affect that check. Matching slugs with incompatible field structures are rejected.
+- **Paste Row** replaces an existing compatible row and keeps that row's identity. It also retains native selection of the corresponding row from a compatible whole-field copy.
+- **Paste Block Below** inserts after the selected row. The field menu's **Paste Block** appends, including into an empty field.
+- Array controls and whole-field clipboard actions keep their native behavior. Native localStorage clipboard data is reused; older row copies containing unrelated source definitions are supported.
+- Read-only/disabled state, destination block filters, and maximum row counts restrict new actions. Replacement still works at the row limit.
 
-The original localStorage clipboard is reused. New copies include the selected block's schema; insertion also accepts older row copies containing the source field's entire schema list and validates only the selected block. The destination's resolved blocks, current dynamic filter, row limit, disabled state, and read-only state govern insertion. A whole-field copy produces guidance to use **Paste Field**. Array row actions and Copy Field / Paste Field retain their existing semantics. Existing whole-field ID handling is deliberately unchanged.
+## Repair and lifecycle
 
-The form builder attaches client-safe embedded block schemas already present in Payload's schema map to rich-text field state. This supports structural IDs in collapsed editors without modifying Lexical or inspecting the DOM. This metadata is separate from field values and is not saved as document content. Old clipboard data lacks these schemas; embedded block IDs can still be refreshed, but refreshing arrays inside embedded inline schemas requires copying the block again after updating UI.
+Commit `4d4cd64f0d` contained the isolated compatibility fix: selected-block validation, a selected-schema copy filter, and regression tests. The later eager schema metadata was separate from that fix.
 
-English labels/messages live in the translations package and are registered as client keys. Other locales currently use the same English strings for these new keys. No translation service or API key is required.
+The repair removes `clipboardBlocks`, its render-time schema scan/reference expansion, request stripping, and the old custom insertion implementation. The generic field renderer, Form request handling, and serializable-fields helper are restored exactly to the pre-clipboard fork baseline (`05097df2f1`). Compaction remains deleted. Copies from older fork versions can still contain that metadata; a small clipboard-read cleanup discards it on the explicit paste action, including native Paste Field. User document values remain untouched. No content schemas, database configuration, generic caches, or Next.js body-size settings change.
 
-## Clipboard metadata and Server Action request size
+Native `addFieldRow` immediately dispatches an empty, loading row. It returns before a later debounced form-state request initializes the fields. Consequently, calling Add Row and then Paste cannot safely wait on its return value. A regression test demonstrates this limitation.
 
-The first release attached full embedded block schemas to rich-text form state. Native form updates and nested Lexical form requests inadvertently sent that client-only metadata back to the server. Repeated schemas could push otherwise small requests above Next.js's default 1 MB Server Action body limit, causing HTTP 413 errors and disrupting Admin rendering/live preview.
+The replacement prepares data off-form using the existing authenticated `form-state` server operation, only when paste is invoked. It uses the destination's native server schemas and existing field traversal. The native paste merge alone does not refresh IDs inside Lexical JSON; a separate regression test demonstrates that limitation. On-demand preparation refreshes structural IDs there without distributing schemas to browsers, following only Lexical nodes and schema-defined arrays/blocks. Uploads, relationships, JSON values, and user-authored fields named `id` are preserved.
 
-The fix keeps Payload’s native client schemas locally for clipboard ID regeneration and strips field-level `clipboardBlocks` metadata from outgoing form state, including parent-document state used by the existing Lexical fork. All document values, initial values, rich-text JSON, settings, row IDs, and external references are preserved. The server already resolves schemas from its configuration. Whole-field and selected-block compatibility checks still use their original schemas.
+A single `PASTE_ROW` reducer transition composes native `ADD_ROW` with native clipboard merging. Every copied value is present before the transition is published to React, autosave, and live preview. Native field rendering then finishes through the normal onChange request at the committed path; the row keeps its native loading state until then. Server components are not prepared at a speculative numeric path.
 
-A synthetic regression fixture measured 1,333,465 bytes of JSON before stripping and 2,725 bytes afterward, with unchanged field values. These are fixture measurements, not measurements of TheHealthLodge's HTTP requests. Actual document content and request encoding still count toward Next.js's body limit. This change does not impose a smaller copy limit or increase the application's Next.js body limit.
+The pending operation stores ancestor and anchor row IDs, rather than numeric positions. Reordering follows those identities; removing an anchor or ancestor cancels the insertion. Restrictions and row limits are checked again against current state. One pending paste per field prevents repeated clicks from creating duplicate operations. Failed preparation has no row to roll back. Navigating away aborts the pending operation.
 
-Optional schema compaction has been removed. Rendering retains Payload's native client schemas without recursively rewriting them. Compiled-consumer regression checks use Payload's actual client-field conversion for references in either Blocks list, nested inside tabs, and verify fresh structural IDs while preserving external references.
+## Local build
 
-This requires a new UI artifact to reach consumers; the existing Lexical override can stay unchanged. Use a fresh release revision (for example `block-clipboard-3.91.0-patches.2` if unused) and update the two block-clipboard overrides/lockfile after publication. Do not overwrite the first release or its tag.
-
-## Building local tarballs
-
-From this fork checkout, after installing workspace dependencies:
+From this fork:
 
 ```sh
 pnpm fork:pack
 ```
 
-This builds UI and its dependencies through Turbo, runs the focused regression tests, packs and verifies UI/translations in a temporary directory, and writes the verified tarballs into `artifacts/` with `SHA256SUMS`. It preserves existing Lexical tarballs and creates no tags or GitHub releases. Requires Node, pnpm, and Python 3. The package manifests keep their aligned Payload version (currently 3.91.0).
-
-Options:
-
-```sh
-pnpm fork:pack --lexical                    # Also rebuild/test/pack Lexical
-pnpm fork:pack --out-dir /tmp/payload-packs # Choose a destination
-pnpm fork:pack --help
-```
-
-For example, if the app and this fork are sibling directories, merge these entries into the app's existing overrides:
-
-```yaml
-overrides:
-  '@payloadcms/ui': 'file:../payload/artifacts/payloadcms-ui-3.91.0.tgz'
-  '@payloadcms/translations': 'file:../payload/artifacts/payloadcms-translations-3.91.0.tgz'
-```
-
-Keep the project's existing Lexical `file:` override. Reinstall dependencies in the consuming project and restart its dev server after rebuilding packages. For reproducible CI builds, local tarballs must be present at the committed paths before installation; a sibling checkout available only on your development machine will not be available in CI. Paths are examples; this script does not edit consuming projects.
-
-## Triggering a release (after review)
-
-The separate `.github/workflows/release-block-clipboard-fork.yml` workflow accepts tags of the form:
-
-```text
-block-clipboard-3.91.0-patches.<positive integer>
-```
-
-After merging the reviewed changes, either push a new tag pointing at that commit or select **Release native block clipboard fork** in GitHub Actions, choose the intended branch/commit, and supply a new tag. For example, the first revision would be `block-clipboard-3.91.0-patches.1`. That example tag has **not** been published by this work.
-
-The workflow checks package alignment and tag ownership, installs the frozen monorepo lockfile, builds UI and its dependencies through Turbo, runs focused clipboard regression tests and lint, and packs only:
+This builds UI/dependencies, runs clipboard and isolated SQLite save/reload tests, packs UI/translations, verifies the actual exports/assets, and writes these files into `artifacts/`:
 
 - `payloadcms-ui-3.91.0.tgz`
 - `payloadcms-translations-3.91.0.tgz`
 - `SHA256SUMS`
 
-The normal package build includes declarations, compiled JavaScript, CSS, SCSS, fonts, and other assets. The verifier inspects the actual tarballs, checks concrete and wildcard export targets and required UI assets, and rejects unresolved `workspace:`, `catalog:`, or `link:` dependencies. pnpm pack applies the existing publishConfig exports and converts workspace/catalog dependency versions.
-
-A temporary external consumer resolves a lockfile, installs it with `--frozen-lockfile` using a separate empty store, imports compiled translations/UI shared exports, resolves UI/RSC/CSS/Lexical exports, executes compiled block insertion against the published core Payload package, and checks aligned installed versions with the existing hosted Lexical override. Package install scripts are disabled for this artifact-resolution smoke test; the consuming application's normal build remains a separate check.
-
-Build/test jobs have read-only repository permissions. Only the final publishing job has `contents: write`. Existing releases are rejected; `gh release create` also fails if another run has already created the release. There is no asset replacement path. The older `release-lexical-fork.yml` remains available for existing Lexical-only releases.
-
-## TheHealthLodge overrides
-
-The two new URLs below are **unpublished placeholders**, not verified download URLs. After publication, replace the tag with the actual successful release tag and confirm both assets exist. Keep the existing Lexical override exactly as it is:
-
-```yaml
-# TheHealthLodge root pnpm-workspace.yaml
-# New block-clipboard URLs below are placeholders until publication.
-overrides:
-  '@payloadcms/ui': 'https://github.com/thelazylamaGit/payload/releases/download/block-clipboard-3.91.0-patches.1/payloadcms-ui-3.91.0.tgz'
-  '@payloadcms/translations': 'https://github.com/thelazylamaGit/payload/releases/download/block-clipboard-3.91.0-patches.1/payloadcms-translations-3.91.0.tgz'
-  '@payloadcms/richtext-lexical': 'https://github.com/thelazylamaGit/payload/releases/download/lexical-3.91.0-patches.6/payloadcms-richtext-lexical-3.91.0.tgz'
-```
-
-Merge these into the project's existing overrides; preserve its other entries. Keep Payload packages aligned at 3.91.0, including `payload`, adapters, Next integration, UI, translations, and rich-text packages. Do not upgrade just one package to a different Payload release. Also check the consuming Next/React versions against the packed peer dependencies; the cold consumer here uses Next 15.4.11 and React/ReactDOM 19.2.6, which satisfy this fork's declared peers. This repository's Next 16 peer range starts at 16.3.3; an older Next 16 consumer needs its own compatibility check.
-
-After release publication, update the consumer locally using its pinned pnpm version:
+Existing Lexical tarballs are preserved. No application installation, tag, push, or release is performed.
 
 ```sh
-pnpm install --no-frozen-lockfile
-pnpm install --frozen-lockfile
-pnpm why @payloadcms/ui @payloadcms/translations @payloadcms/richtext-lexical payload
+pnpm fork:pack --out-dir /tmp/payload-packs
+pnpm fork:pack --lexical  # Optional; unnecessary for this repair
 ```
 
-Review and commit **both** `pnpm-workspace.yaml` and `pnpm-lock.yaml`. The lockfile must record the new immutable tarball URLs/integrities. Do not manually rewrite it, reuse a lockfile for another tag, or switch CI to a non-frozen installation. Once the lockfile is committed, the existing GitHub Actions `pnpm install --frozen-lockfile` is sufficient; no local links, local package builds, extra package download step, or warmed pnpm cache are needed. Keep the consumer's existing normal build-script policy and Node/pnpm setup.
-
-## Public download access
-
-An unauthenticated GitHub API request returned `private: false` / `visibility: public` for this fork. An unauthenticated GET of the existing `lexical-3.91.0-patches.6` tarball returned HTTP 200 and a valid `@payloadcms/richtext-lexical@3.91.0` archive. These existing artifacts require no GitHub token. No new block-clipboard release or asset was published or downloaded, so anonymous access to the **new** URLs still needs checking after publication.
-
-If repository visibility changes to private, these direct URLs must not be assumed to work: pnpm does not automatically use `GH_TOKEN` to download private release assets. A private distribution needs a separately tested authenticated asset-download or package-registry strategy and a regenerated lockfile. This public-release workflow/consumer example does not provision a private distribution path.
-
-After publication, check the actual assets without credentials (and verify checksums):
+Copy the rebuilt UI/translations tarballs to the paths used by your application's existing `file:` references when ready. Stop its dev server, refresh the local-tarball installation, and restart:
 
 ```sh
-# Set TAG to the actual published tag, not an unpublished placeholder.
-curl -q --fail --location -O "https://github.com/thelazylamaGit/payload/releases/download/$TAG/SHA256SUMS"
-curl -q --fail --location -O "https://github.com/thelazylamaGit/payload/releases/download/$TAG/payloadcms-ui-3.91.0.tgz"
-curl -q --fail --location -O "https://github.com/thelazylamaGit/payload/releases/download/$TAG/payloadcms-translations-3.91.0.tgz"
-sha256sum -c SHA256SUMS
+pnpm install --force --no-frozen-lockfile
 ```
+
+Review the lockfile's updated local-tarball integrities and commit it with the vendor files. CI can then keep using a frozen lockfile.
 
 ## Verification
 
-Local fork checks:
-
 ```sh
-pnpm build:ui
+pnpm exec vitest run --project unit packages/ui/src/elements/ClipboardAction test/clipboard
 pnpm exec tsc --noEmit -p packages/ui/tsconfig.json
-pnpm exec vitest run --project unit packages/ui/src/elements/ClipboardAction packages/ui/src/forms/Form/stripClipboardMetadata.spec.ts packages/ui/src/providers/ServerFunctions/clipboardMetadata.spec.ts
-pnpm exec eslint packages/ui/src/elements/ClipboardAction packages/ui/src/elements/ArrayAction/index.tsx packages/ui/src/fields/Blocks/index.tsx packages/ui/src/fields/Blocks/RowActions.tsx packages/ui/src/forms/fieldSchemasToFormState/renderField.tsx packages/translations/src/clientKeys.ts packages/translations/src/languages/*.ts
-mkdir -p /tmp/block-clipboard-artifacts
-pnpm -C packages/ui pack --pack-destination /tmp/block-clipboard-artifacts
-pnpm -C packages/translations pack --pack-destination /tmp/block-clipboard-artifacts
-python3 scripts/fork-release/verify-block-clipboard-artifacts.py /tmp/block-clipboard-artifacts
-node scripts/fork-release/smoke-block-clipboard-consumer.mjs /tmp/block-clipboard-artifacts
-pnpm test:e2e fields__collections__Blocks --grep 'copy paste' --workers 1
+pnpm fork:pack
+LEXICAL_TARBALL=/absolute/path/to/existing-lexical.tgz node scripts/fork-release/smoke-block-clipboard-consumer.mjs artifacts
 ```
 
-The smoke script normally downloads the existing public Lexical release. For an already downloaded archive, set `LEXICAL_TARBALL=/absolute/path/to/payloadcms-richtext-lexical-3.91.0.tgz`. Set `KEEP_SMOKE_CONSUMER=1` to retain its temporary directory for inspection. These local tarball checks do not verify new hosted release URLs.
+The SQLite fixture creates its own temporary database and records and deletes them afterward. It exercises actual native copy/compatibility checking, off-form preparation, atomic insertion, subsequent native component initialization, database save, and reload. Assertions include nested arrays/blocks and Lexical blocks, relationship IDs, authored IDs, unsaved values, unchanged source content, and unchanged destination rows.
 
-In TheHealthLodge after installing the published assets:
+Local validation: **73 tests passed across nine files**, UI TypeScript passed, and production-source lint passed with four pre-existing warnings and no errors.
 
-1. Run its type check, lint, tests, and production Next build.
-2. Copy an unsaved Rich Text Section from Pages to Practitioners, whose allowed block list excludes Hero. Confirm styles/settings survive; verify disallowed blocks are rejected.
-3. Use Paste Block on empty and populated fields and Paste Block Below on first/middle/last rows. Confirm originals remain intact and saving/reloading succeeds.
-4. Check nested blocks/arrays and rich-text embedded blocks with uploads/relationships. Copied structural IDs must differ while external references remain the same.
-5. Check read-only fields, maxRows, dynamic filters, whole-field guidance, and ordinary Array/Copy Field/Paste Field controls.
-6. Run a clean CI build with the committed frozen lockfile and no dependency cache. Confirm the new hosted assets download anonymously.
+Other tests cover malformed/legacy data, incompatible nested/tab schemas, array/whole-field behavior, replacement, insertion positions, repeated clicks, delayed initialization, failures, reordered/deleted ancestors/anchors, read-only/disabled fields, and restrictions changing during preparation. Compiled-package verification uses a separate temporary consumer, not the user's project.
 
-This task does not edit TheHealthLodge, push commits/tags, or publish releases.
+### Performance evidence and limits
 
-## Results in this workspace
+A representative regression fixture supplies 219 possible embedded schemas per editor. With the previous implementation, 20 tiny editors produced **10,123,381 bytes** of initial form-state JSON. Tests enforce less than **200 bytes per editor**, absence of clipboard schema metadata, and no iteration over the descendant schema registry during rendering. The same tests were run against the previous renderer and failed for 1, 8, and 20 editors. The compatibility regression also fails against the validator extracted from the published `@payloadcms/ui@3.91.0` tarball and passes with the repair. Its SHA-256 was `aa145f2446f45c275d7ee200d875847a4156833d37700ab190ed0dddb809e480`.
 
-- `pnpm build:ui`: passed, including dependency builds, declarations, React compilation, bundles, and styles.
-- UI `tsc --noEmit`: passed.
-- Focused clipboard regression suite: **62 passed** across six test files, including the pre-existing clipboard tests.
-- Production-source lint: passed with no errors; five pre-existing warnings remain in Form and ServerFunctions. Unit test files are excluded by the repository ESLint/TypeScript configuration and were executed with Vitest. Formatting and `git diff --check`: passed.
-- Both final tarballs: verified contents, concrete/wildcard exports, UI assets, package alignment, and external dependency specifiers. Local `SHA256SUMS` generated.
-- Cold temporary consumer: passed frozen-lockfile installation with a new empty store, compiled exports, and execution of compiled block insertion against public `payload@3.91.0`, alongside the existing downloaded Lexical release. No replacement core package was used.
-- Focused Blocks browser suite: attempted, but the test app could not connect to MongoDB at `127.0.0.1:27018`. Browser behavior is not claimed as verified. The existing Blocks e2e file has 49 sort-order lint errors and two warnings both before and after the edits; no additional lint findings were introduced there.
-- GitHub Actions publication and new hosted tarball downloads: not run. They require publishing an approved release. Existing public Lexical download access was verified separately.
+Before the user requested fork-only testing, a read-only production-mode benchmark used the consuming application's configuration/content and admin permissions. Server components were mocked, with one warmup and five measured repetitions per case. These figures compare the previous installed renderer against the restored stock renderer, not a production installation of the repaired artifacts:
+
+| Fixture          | Previous basic form state | Stock renderer | Previous warm median | Stock warm median |
+| ---------------- | ------------------------: | -------------: | -------------------: | ----------------: |
+| No blocks        |                 506,650 B |        7,535 B |             16.93 ms |           0.10 ms |
+| Several blocks   |               3,030,097 B |       35,407 B |            110.28 ms |           0.56 ms |
+| Many blocks      |               5,047,154 B |       56,004 B |            181.82 ms |           0.75 ms |
+| Nested rich text |               5,047,154 B |       56,004 B |            177.16 ms |           0.49 ms |
+
+The largest editor contained 219 entries totaling 499,096 bytes. Ten copies added 4,990,960 bytes of schemas. Removing request metadata alone could not address that initial form-state expansion. The repaired generic renderer is byte-for-byte identical to the stock fork baseline source, and unused clipboard actions attach no metadata.
+
+These measurements exclude server-component execution, complete RSC responses, transfer compression, browser navigation, and copy/paste latency. They do not attribute all Payload navigation cost to clipboard metadata. The repaired artifacts are tested here; their consuming-application browser behavior and end-to-end production performance are left for the user to verify, as requested. No application dependency installation or vendor replacement is part of this repair delivery.
+
+## Optional GitHub release
+
+The separate `release-block-clipboard-fork.yml` workflow builds, checks, and publishes UI/translations for a new tag `block-clipboard-3.91.0-patches.<revision>`. Existing releases are immutable. The older Lexical workflow remains separate. Local packaging is sufficient for current `file:` consumption; publishing is optional and requires an explicit request.

@@ -92,78 +92,55 @@ try {
       '@payloadcms/richtext-lexical', '@payloadcms/richtext-lexical/client']) {
       assert.ok(import.meta.resolve(specifier).includes('/dist/'), specifier)
     }
-    const { insertBlockFromClipboard } = await import(new URL(
-      '../../elements/ClipboardAction/insertBlockFromClipboard.js', import.meta.resolve('@payloadcms/ui'),
-    ))
+    const entry = import.meta.resolve('@payloadcms/ui')
+    const { fieldReducer } = await import(new URL('../../forms/Form/fieldReducer.js', entry))
+    const { isClipboardDataValid } = await import(new URL('../../elements/ClipboardAction/isClipboardDataValid.js', entry))
+    const { prepareClipboardIDs } = await import(new URL('../../elements/ClipboardAction/prepareClipboardIDs.js', entry))
+    const accordion = { slug: 'accordion', fields: [{ name: 'text', type: 'text' }] }
+    assert.equal(isClipboardDataValid({ type: 'blocks', path: 'source', fieldPath: 'layout', rowIndex: 0,
+      blocks: [accordion, { slug: 'image', fields: [] }], schemaBlocks: [accordion],
+      data: { 'source.0.blockType': { value: 'accordion' } },
+    }), true)
+    const i18n = await initI18n({ config: { fallbackLanguage: 'en', supportedLanguages: { en } } })
     const current = {
-      layout: { value: 1, valid: true, rows: [{ id: 'existing', blockType: 'content' }] },
+      layout: { value: 1, valid: true, rows: [{ id: 'existing', blockType: 'accordion' }] },
       'layout.0.id': { value: 'existing', valid: true },
       'layout.0.text': { value: 'keep unsaved destination', valid: true },
     }
-    const result = insertBlockFromClipboard({
-      blocksMap: {}, formState: current, path: 'layout', rowIndex: 1,
-      dataFromClipboard: {
-        type: 'blocks', path: 'source', rowIndex: 0,
-        blocks: [{ slug: 'content', fields: [{ name: 'text', type: 'text' }] }],
-        data: {
-          'source.0.id': { value: 'copied', valid: true },
-          'source.0.blockType': { value: 'content', valid: true },
-          'source.0.text': { value: 'unsaved copy', valid: true },
-        },
-      },
+    const prepared = { text: { value: 'unsaved copy', valid: true } }
+    const result = fieldReducer(current, { type: 'PASTE_ROW', path: ['layout'], position: { after: 'existing' },
+      blockType: 'accordion', subFieldState: prepared,
     })
     assert.equal(result.layout.rows.length, 2)
-    assert.equal(result['layout.0.id'].value, 'existing')
     assert.equal(result['layout.0.text'].value, 'keep unsaved destination')
     assert.equal(result['layout.1.text'].value, 'unsaved copy')
-    assert.notEqual(result['layout.1.id'].value, 'copied')
+    assert.equal(result.layout.rows[1].isLoading, true)
     assert.equal(current.layout.rows.length, 1)
-    const { stripClipboardMetadataFromRequest } = await import(new URL(
-      '../../forms/Form/stripClipboardMetadata.js', import.meta.resolve('@payloadcms/ui'),
-    ))
-    const localState = { body: {
-      valid: true, value: { root: { type: 'root', children: [{ type: 'text', text: 'Keep rich text', format: 1 }] } },
-      clipboardBlocks: [{ slug: 'embedded', fields: [] }],
-    } }
-    const request = stripClipboardMetadataFromRequest({ formState: localState, documentFormState: localState })
-    assert.equal('clipboardBlocks' in request.formState.body, false)
-    assert.equal('clipboardBlocks' in request.documentFormState.body, false)
-    assert.deepEqual(request.formState.body.value, localState.body.value)
-    assert.equal('clipboardBlocks' in localState.body, true)
-    const i18n = await initI18n({ config: { fallbackLanguage: 'en', supportedLanguages: { en } } })
     for (const referenceList of ['blocks', 'blockReferences']) {
-      const nestedField = createClientField({ defaultIDType: 'number', importMap: {}, i18n,
+      const nativeField = createClientField({ defaultIDType: 'number', importMap: {}, i18n,
         field: { name: 'nested', type: 'blocks', blocks: [], [referenceList]: ['child'] },
       })
-      const schema = { slug: 'panel', fields: [
-        { type: 'tabs', tabs: [{ label: 'Content', fields: [nestedField] }] },
-      ] }
-      const body = { root: { type: 'root', children: [{ type: 'block', fields: {
-        id: 'old-panel', blockType: 'panel', nested: [
-          { id: 'old-child', blockType: 'child', reference: { id: 'keep-document' } },
-        ],
-      } }] } }
-      const pasted = insertBlockFromClipboard({
-        blocksMap: { child: { slug: 'child', fields: [
-          { name: 'reference', type: 'relationship', relationTo: 'pages' },
-        ] } },
-        formState: current, path: 'layout', rowIndex: 1,
-        dataFromClipboard: { type: 'blocks', path: 'source', rowIndex: 0,
-          blocks: [{ slug: 'content', fields: [{ name: 'body', type: 'richText' }] }],
-          data: {
-            'source.0.id': { value: 'copied', valid: true },
-            'source.0.blockType': { value: 'content', valid: true },
-            'source.0.body': { value: body, valid: true, clipboardBlocks: [schema] },
-          },
-        },
-      })
-      const fields = pasted['layout.1.body'].value.root.children[0].fields
-      assert.notEqual(fields.id, 'old-panel')
-      assert.notEqual(fields.nested[0].id, 'old-child')
-      assert.equal(fields.nested[0].reference.id, 'keep-document')
-      assert.deepEqual(body.root.children[0].fields.nested[0].id, 'old-child')
+      assert.ok(nativeField)
     }
-    console.log('Cold consumer, compiled exports, insertion, request sanitization, and native nested block references passed')
+    const bodyField = { name: 'body', type: 'richText' }
+    const data = { body: { root: { children: [{ type: 'block', fields: {
+      id: 'old-panel', blockType: 'panel', items: [{ id: 'old-item', text: 'unchanged' }],
+      reference: { id: 'keep-document' },
+    } }] } } }
+    const value = prepareClipboardIDs({ config: { blocks: [] }, data, fields: [bodyField],
+      schemaMap: new Map([
+        ['pages.layout.accordion.body', bodyField],
+        ['pages.layout.accordion.body.lexical_internal_feature.blocks.lexical_blocks.panel.fields', { fields: [
+          { name: 'items', type: 'array', fields: [{ name: 'text', type: 'text' }] },
+          { name: 'reference', type: 'relationship', relationTo: 'pages' },
+        ] }],
+      ]),
+    })
+    assert.notEqual(value.body.root.children[0].fields.id, 'old-panel')
+    assert.notEqual(value.body.root.children[0].fields.items[0].id, 'old-item')
+    assert.equal(value.body.root.children[0].fields.reference.id, 'keep-document')
+    assert.equal(data.body.root.children[0].fields.id, 'old-panel')
+    console.log('Cold consumer, compiled exports, atomic native paste, selected-row compatibility, and on-demand IDs passed')
   `,
   )
   execFileSync('node', ['smoke.mjs'], { cwd: temp, stdio: 'inherit' })

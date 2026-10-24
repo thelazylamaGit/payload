@@ -64,8 +64,8 @@ jobs:
       - run: pnpm build:ui
       - name: Focused regression tests and lint
         run: |
-          pnpm exec vitest run --project unit packages/ui/src/elements/ClipboardAction packages/ui/src/forms/Form/stripClipboardMetadata.spec.ts packages/ui/src/providers/ServerFunctions/clipboardMetadata.spec.ts
-          pnpm exec eslint packages/ui/src/elements/ClipboardAction packages/ui/src/elements/ArrayAction/index.tsx packages/ui/src/fields/Blocks/index.tsx packages/ui/src/fields/Blocks/RowActions.tsx packages/ui/src/forms/fieldSchemasToFormState/renderField.tsx packages/ui/src/forms/Form/index.tsx packages/ui/src/forms/Form/stripClipboardMetadata.ts packages/ui/src/forms/Form/reduceToSerializableFields.ts packages/ui/src/providers/ServerFunctions/index.tsx packages/translations/src/clientKeys.ts packages/translations/src/languages/*.ts
+          pnpm exec vitest run --project unit packages/ui/src/elements/ClipboardAction test/clipboard
+          pnpm exec eslint packages/ui/src/elements/ClipboardAction packages/ui/src/elements/ArrayAction/index.tsx packages/ui/src/fields/Blocks/index.tsx packages/ui/src/fields/Blocks/RowActions.tsx packages/ui/src/forms/fieldSchemasToFormState/renderField.tsx packages/ui/src/forms/Form/index.tsx packages/ui/src/forms/Form/reduceToSerializableFields.ts packages/ui/src/forms/Form/fieldReducer.ts packages/ui/src/forms/Form/types.ts packages/ui/src/utilities/buildFormState.ts packages/ui/src/providers/ServerFunctions/index.tsx packages/translations/src/clientKeys.ts packages/translations/src/languages/*.ts
       - name: Pack compiled UI and translations only
         shell: bash
         run: |
