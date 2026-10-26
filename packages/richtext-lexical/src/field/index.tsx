@@ -4,25 +4,46 @@ import type { EditorConfig as LexicalEditorConfig } from 'lexical'
 import type { RichTextFieldClient } from 'payload'
 
 import { ShimmerEffect, useConfig } from '@payloadcms/ui'
-import React, { lazy, Suspense, useEffect, useState } from 'react'
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 
 import type { FeatureProviderClient } from '../features/typesClient.js'
 import type { SanitizedClientEditorConfig } from '../lexical/config/types.js'
-import type { LexicalFieldAdminClientProps, LexicalRichTextFieldProps } from '../types.js'
+import type {
+  LexicalFieldAdminClientProps,
+  LexicalRichTextFieldComponentProps,
+  LexicalRichTextFieldProps,
+} from '../types.js'
 
 import { defaultEditorLexicalConfig } from '../lexical/config/client/default.js'
 import { loadClientFeatures } from '../lexical/config/client/loader.js'
 import { sanitizeClientEditorConfig } from '../lexical/config/client/sanitize.js'
+import { expandFeatureClientSchemaMap } from '../utilities/featureClientSchemaMapSource.js'
 import { RichTextViewProvider, useRichTextView } from './RichTextViewProvider.js'
 
 const RichTextEditor = lazy(() =>
   import('./Field.js').then((module) => ({ default: module.RichText })),
 )
 
-export const RichTextField: React.FC<LexicalRichTextFieldProps> = (props) => {
+export const RichTextField: React.FC<LexicalRichTextFieldComponentProps> = ({
+  featureClientSchemaMap: featureClientSchemaMapFromProps,
+  featureClientSchemaMapSource,
+  ...props
+}) => {
+  const { config } = useConfig()
+
+  const featureClientSchemaMap = useMemo(
+    () =>
+      featureClientSchemaMapFromProps ??
+      expandFeatureClientSchemaMap({
+        blocksMap: config.blocksMap,
+        source: featureClientSchemaMapSource,
+      }),
+    [config.blocksMap, featureClientSchemaMapFromProps, featureClientSchemaMapSource],
+  )
+
   return (
     <RichTextViewProvider inheritable={true} views={props.views}>
-      <RichTextFieldImpl {...props} />
+      <RichTextFieldImpl {...props} featureClientSchemaMap={featureClientSchemaMap} />
     </RichTextViewProvider>
   )
 }

@@ -17,7 +17,7 @@ import type {
   LexicalEditorProps,
   LexicalEditorViewMap,
   LexicalFieldAdminClientProps,
-  LexicalRichTextFieldProps,
+  LexicalRichTextFieldComponentProps,
 } from '../types.js'
 
 // eslint-disable-next-line payload/no-imports-from-exports-dir
@@ -43,15 +43,16 @@ export const RscEntryLexicalField: React.FC<
     throw new Error('Initialized lexical RSC field without a field name')
   }
 
-  const { clientFeatures, featureClientImportMap, featureClientSchemaMap } = initLexicalFeatures({
-    clientFieldSchemaMap: args.clientFieldSchemaMap,
-    fieldSchemaMap: args.fieldSchemaMap,
-    i18n: args.i18n,
-    path,
-    payload: args.payload,
-    sanitizedEditorConfig: args.sanitizedEditorConfig,
-    schemaPath,
-  })
+  const { clientFeatures, featureClientImportMap, featureClientSchemaMapSource } =
+    initLexicalFeatures({
+      clientFieldSchemaMap: args.clientFieldSchemaMap,
+      fieldSchemaMap: args.fieldSchemaMap,
+      i18n: args.i18n,
+      path,
+      payload: args.payload,
+      sanitizedEditorConfig: args.sanitizedEditorConfig,
+      schemaPath,
+    })
 
   let initialLexicalFormState = {}
   if (args.siblingData?.[field.name]?.root?.children?.length) {
@@ -97,9 +98,9 @@ export const RscEntryLexicalField: React.FC<
     admin.hideDraggableBlockElement = true
   }
 
-  const props: LexicalRichTextFieldProps = {
+  const props: LexicalRichTextFieldComponentProps = {
     clientFeatures,
-    featureClientSchemaMap, // TODO: Does client need this? Why cant this just live in the server
+    featureClientSchemaMapSource,
     field: args.clientField as RichTextFieldClient,
     forceRender: args.forceRender,
     initialLexicalFormState,
@@ -130,8 +131,8 @@ export const RscEntryLexicalField: React.FC<
   }
 
   for (const key in props) {
-    if (props[key as keyof LexicalRichTextFieldProps] === undefined) {
-      delete props[key as keyof LexicalRichTextFieldProps]
+    if (props[key as keyof LexicalRichTextFieldComponentProps] === undefined) {
+      delete props[key as keyof LexicalRichTextFieldComponentProps]
     }
   }
 

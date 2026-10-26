@@ -67,6 +67,8 @@ export interface Config {
   };
   blocks: {
     InlineBadge: InlineBadge;
+    LayoutFields: LayoutFields;
+    LabelledCallout: LabelledCallout;
     ButtonRow: ButtonRow;
     TextColumns: TextColumns;
     GridPanel: GridPanel;
@@ -143,6 +145,62 @@ export interface InlineBadge {
   id?: string | null;
   blockName?: string | null;
   blockType: 'InlineBadge';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "LayoutFields".
+ */
+export interface LayoutFields {
+  unnamedTabText?: string | null;
+  namedTab?: {
+    namedTabText?: string | null;
+  };
+  rowText?: string | null;
+  collapsibleText?: string | null;
+  namedGroup?: {
+    groupText?: string | null;
+  };
+  unnamedGroupText?: string | null;
+  author?: (string | null) | User;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'LayoutFields';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: string;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  resetPasswordRequestedAt?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "LabelledCallout".
+ */
+export interface LabelledCallout {
+  text?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'LabelledCallout';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -412,32 +470,6 @@ export interface PayloadKv {
     | number
     | boolean
     | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
- */
-export interface User {
-  id: string;
-  updatedAt: string;
-  createdAt: string;
-  email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  resetPasswordRequestedAt?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
-    | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
-      }[]
-    | null;
-  password?: string | null;
-  collection: 'users';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

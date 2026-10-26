@@ -4,6 +4,8 @@ import { traverseFields } from '@payloadcms/ui/utilities/buildFieldSchemaMap/tra
 
 import type { ResolvedServerFeatureMap } from '../features/typesServer.js'
 
+import { addFeatureEntryPath } from './featureSchemaMapEntries.js'
+
 export const getGenerateSchemaMap =
   (args: { resolvedFeatureMap: ResolvedServerFeatureMap }): RichTextAdapter['generateSchemaMap'] =>
   ({ config, field, i18n, schemaMap, schemaPath }) => {
@@ -37,7 +39,10 @@ export const getGenerateSchemaMap =
             })
           }
 
-          schemaMap.set(`${schemaPath}.lexical_internal_feature.${featureKey}.${schemaKey}`, field)
+          const featureEntryPath = `${schemaPath}.lexical_internal_feature.${featureKey}.${schemaKey}`
+
+          schemaMap.set(featureEntryPath, field)
+          addFeatureEntryPath({ schemaMap, schemaPath: featureEntryPath })
         }
       }
     }

@@ -5,6 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import { expandFeatureClientSchemaMap } from '../../packages/richtext-lexical/src/utilities/featureClientSchemaMapSource.js'
 import { initPayloadInt } from '../__helpers/shared/initPayloadInt.js'
 import { analyzeEditorMap, buildEditorSchemaMaps } from './analyzeSchemaMaps.js'
 import { getFlightBytes } from './flightSize.js'
@@ -46,6 +47,9 @@ describe('Lexical feature client schema maps', () => {
           {
             clientSchemaMapEntries: built.clientSchemaMap.size,
             clientSchemaMapMs: built.clientSchemaMapMs,
+            combinedSourceFlightBytes: getFlightBytes(
+              built.editors.map((editor) => editor.featureClientSchemaMapSource),
+            ),
             combinedFlightBytes: getFlightBytes(
               built.editors.map((editor) => editor.featureClientSchemaMap),
             ),
@@ -82,13 +86,22 @@ describe('Lexical feature client schema maps', () => {
   }
 
   /**
+   * The feature client schema map the client derives from what the server sends
+   */
+  const getClientFeatureClientSchemaMap = (schemaPath: string) =>
+    expandFeatureClientSchemaMap({
+      blocksMap: built.clientConfig.blocksMap,
+      source: getEditor(schemaPath).featureClientSchemaMapSource,
+    })
+
+  /**
    * Flight bytes of a route rendering the same editor several times, e.g. repeated block rows.
    */
   const getRepeatedInstanceFlightBytes = (schemaPath: string, instances: number) =>
     getFlightBytes(
       Array.from(
         { length: instances },
-        () => built.initEditorInstance(schemaPath).featureClientSchemaMap,
+        () => built.initEditorInstance(schemaPath).featureClientSchemaMapSource,
       ),
     )
 
@@ -116,7 +129,7 @@ describe('Lexical feature client schema maps', () => {
     const getAllowedSlugs = (schemaPath: string, blocksKey: string) => {
       const prefix = `${schemaPath}.lexical_internal_feature.blocks.${blocksKey}.`
 
-      return Object.keys(getEditor(schemaPath).featureClientSchemaMap.blocks!)
+      return Object.keys(getClientFeatureClientSchemaMap(schemaPath).blocks!)
         .filter((key) => key.startsWith(prefix) && !key.slice(prefix.length).includes('.'))
         .map((key) => key.slice(prefix.length))
     }
@@ -127,6 +140,8 @@ describe('Lexical feature client schema maps', () => {
       blockSlugs.textPanel,
       blockSlugs.accordion,
       blockSlugs.buttonRow,
+      blockSlugs.layoutFields,
+      blockSlugs.labelledCallout,
     ])
     expect(getAllowedSlugs(nestingPath[0]!, 'lexical_inline_blocks')).toEqual([
       blockSlugs.inlineBadge,
@@ -134,6 +149,7 @@ describe('Lexical feature client schema maps', () => {
     expect(getAllowedSlugs(nestingPath[2]!, 'lexical_blocks')).toEqual([
       blockSlugs.grid,
       blockSlugs.buttonRow,
+      'InlineDefinedNote',
     ])
     expect(getAllowedSlugs(nestingPath[3]!, 'lexical_blocks')).toEqual([blockSlugs.buttonRow])
   })
@@ -160,10 +176,49 @@ describe('Lexical feature client schema maps', () => {
     expect(getRepeatedInstanceFlightBytes(nestingPath[0]!, 8) - single).toBeLessThan(7 * 100)
   })
 
-  it('should keep the serialized schema maps of all editors within budget', () => {
-    const allMaps = built.editors.map(({ featureClientSchemaMap }) => featureClientSchemaMap)
+  it('should derive the full feature client schema map on the client', () => {
+    for (const { featureClientSchemaMap, schemaPath } of built.editors) {
+      // Same entries, values and order as the full feature client schema map
+      expect(JSON.stringify(getClientFeatureClientSchemaMap(schemaPath))).toBe(
+        JSON.stringify(featureClientSchemaMap),
+      )
+    }
+  })
 
-    // 406,805 bytes before client schemas were shared and nested editor schemas were excluded
-    expect(getFlightBytes(allMaps)).toBeLessThan(200_000)
+  it('should only send the entries features generate and reference registered blocks', () => {
+    for (const { featureClientSchemaMap, featureClientSchemaMapSource } of built.editors) {
+      expect(featureClientSchemaMapSource.blocks!.entries.length).toBeLessThan(
+        Object.keys(featureClientSchemaMap.blocks!).length,
+      )
+    }
+
+    const getEntry = (schemaPath: string, key: string) =>
+      getEditor(schemaPath).featureClientSchemaMapSource.blocks!.entries.find(
+        (entry) => entry.key === key,
+      )!
+
+    expect(getEntry(nestingPath[0]!, 'lexical_blocks.LayoutFields.fields')).toEqual({
+      blockSlug: blockSlugs.layoutFields,
+      hasSubFields: true,
+      key: 'lexical_blocks.LayoutFields.fields',
+    })
+    expect(getEntry(nestingPath[0]!, 'lexical_blocks.LayoutFields').value![0]).toMatchObject({
+      blocks: [],
+    })
+    // Custom block components add a server-only field, so the block's fields are sent
+    expect(getEntry(nestingPath[0]!, 'lexical_blocks.LabelledCallout.fields').value).toBeDefined()
+    // Blocks defined inline in an editor are not part of the client config
+    expect(getEntry(nestingPath[2]!, 'lexical_blocks.InlineDefinedNote')).not.toHaveProperty(
+      'blockSlug',
+    )
+  })
+
+  it('should keep the serialized schema maps of all editors within budget', () => {
+    const allSources = built.editors.map(
+      ({ featureClientSchemaMapSource }) => featureClientSchemaMapSource,
+    )
+
+    // 406,805 bytes for the full maps before client schemas were shared and nested editor schemas were excluded
+    expect(getFlightBytes(allSources)).toBeLessThan(20_000)
   })
 })

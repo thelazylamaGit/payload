@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { SanitizedServerEditorConfig } from '../lexical/config/types.js'
 
+import { expandFeatureClientSchemaMap } from './featureClientSchemaMapSource.js'
 import { initLexicalFeatures } from './initLexicalFeatures.js'
 
 const editorPath = 'pages.content'
@@ -32,7 +33,7 @@ const createClientFieldSchemaMap = (): ClientFieldSchemaMap =>
     [`${nestedEditorPath}.lexical_internal_feature.blocks.lexical_blocks.cta.label`, label],
   ])
 
-const getBlocksFeatureClientSchemaMap = (clientFieldSchemaMap: ClientFieldSchemaMap) =>
+const initFeatures = (clientFieldSchemaMap: ClientFieldSchemaMap) =>
   initLexicalFeatures({
     clientFieldSchemaMap,
     fieldSchemaMap: new Map() as FieldSchemaMap,
@@ -41,7 +42,10 @@ const getBlocksFeatureClientSchemaMap = (clientFieldSchemaMap: ClientFieldSchema
     payload: { importMap: {} } as unknown as Payload,
     sanitizedEditorConfig,
     schemaPath: editorPath,
-  }).featureClientSchemaMap.blocks!
+  })
+
+const getBlocksFeatureClientSchemaMap = (clientFieldSchemaMap: ClientFieldSchemaMap) =>
+  initFeatures(clientFieldSchemaMap).featureClientSchemaMap.blocks!
 
 describe('initLexicalFeatures', () => {
   it('should include sub-fields of the feature but not of nested editors', () => {
@@ -71,5 +75,18 @@ describe('initLexicalFeatures', () => {
 
     expect(second).not.toBe(first)
     expect(second).toEqual(first)
+  })
+
+  it('should send the full map if its sub-field entries cannot be derived on the client', () => {
+    const { featureClientSchemaMap, featureClientSchemaMapSource } = initFeatures(
+      createClientFieldSchemaMap(),
+    )
+
+    expect(featureClientSchemaMapSource.blocks!.entries).toHaveLength(
+      Object.keys(featureClientSchemaMap.blocks!).length,
+    )
+    expect(
+      expandFeatureClientSchemaMap({ blocksMap: {}, source: featureClientSchemaMapSource }),
+    ).toEqual(featureClientSchemaMap)
   })
 })

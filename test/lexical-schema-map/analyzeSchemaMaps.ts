@@ -52,14 +52,15 @@ export const buildEditorSchemaMaps = async ({
   global._payload_doNotCacheClientSchemaMap = true
 
   const schemaMap: FieldSchemaMap = getSchemaMap({ collectionSlug, config: payload.config, i18n })
+  const clientConfig = getClientConfig({
+    config: payload.config,
+    i18n,
+    importMap: payload.importMap,
+    user: true,
+  })
   const clientSchemaMap = getClientSchemaMap({
     collectionSlug,
-    config: getClientConfig({
-      config: payload.config,
-      i18n,
-      importMap: payload.importMap,
-      user: true,
-    }),
+    config: clientConfig,
     i18n,
     payload,
     schemaMap,
@@ -71,7 +72,7 @@ export const buildEditorSchemaMaps = async ({
    */
   const initEditorInstance = (schemaPath: string) => {
     const field = schemaMap.get(schemaPath) as RichTextField
-    const { featureClientSchemaMap } = initLexicalFeatures({
+    const { featureClientSchemaMap, featureClientSchemaMapSource } = initLexicalFeatures({
       clientFieldSchemaMap: clientSchemaMap,
       fieldSchemaMap: schemaMap,
       i18n,
@@ -82,7 +83,7 @@ export const buildEditorSchemaMaps = async ({
       ).editorConfig,
       schemaPath,
     })
-    return { featureClientSchemaMap, schemaPath }
+    return { featureClientSchemaMap, featureClientSchemaMapSource, schemaPath }
   }
 
   const editors = [...schemaMap.entries()]
@@ -93,6 +94,7 @@ export const buildEditorSchemaMaps = async ({
   const heapDeltaBytes = process.memoryUsage().heapUsed - heapBefore
 
   return {
+    clientConfig,
     clientSchemaMap,
     clientSchemaMapMs,
     constructionMs,

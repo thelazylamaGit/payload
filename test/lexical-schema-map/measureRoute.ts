@@ -179,10 +179,15 @@ const measureCollection = async ({ slug, token }: { slug: string; token: string 
   const rows = parseFlight(body)
   const featureMaps = rows.flatMap((row) => collectByKey(row.json, 'featureClientSchemaMap', []))
   const mapStats = featureMaps.map(analyzeFeatureMap)
-  const initialStates = rows.flatMap((row) => collectByKey(row.json, 'initialState', []))
-  const editorProps = rows.flatMap((row) =>
-    collectParentsOfKey(row.json, 'featureClientSchemaMap', []),
+  // Compact form the client derives the feature client schema map from
+  const featureMapSources = rows.flatMap((row) =>
+    collectByKey(row.json, 'featureClientSchemaMapSource', []),
   )
+  const initialStates = rows.flatMap((row) => collectByKey(row.json, 'initialState', []))
+  const editorProps = rows.flatMap((row) => [
+    ...collectParentsOfKey(row.json, 'featureClientSchemaMap', []),
+    ...collectParentsOfKey(row.json, 'featureClientSchemaMapSource', []),
+  ])
   const schemaPaths = editorProps.map((props) => props.schemaPath as string)
 
   const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
@@ -195,7 +200,8 @@ const measureCollection = async ({ slug, token }: { slug: string; token: string 
     },
     containsEditor: body.includes('lexical_internal_feature'),
     decodedBytes: body.length,
-    editorCount: featureMaps.length,
+    editorCount: featureMaps.length + featureMapSources.length,
+    featureClientSchemaMapSourceBytes: sum(featureMapSources.map(byteLength)),
     editorSchemaPaths: schemaPaths,
     featureClientSchemaMaps: {
       bytesPerEditor: mapStats.map((stats) => stats.bytes),

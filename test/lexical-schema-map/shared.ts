@@ -8,6 +8,8 @@ export const blockSlugs = {
   grid: 'Grid',
   gridPanel: 'GridPanel',
   inlineBadge: 'InlineBadge',
+  labelledCallout: 'LabelledCallout',
+  layoutFields: 'LayoutFields',
   panel: 'Panel',
   plainColumns: 'PlainColumns',
   plainGrid: 'PlainGrid',

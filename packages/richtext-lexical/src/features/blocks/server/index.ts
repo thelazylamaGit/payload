@@ -3,6 +3,7 @@ import type {
   BlocksField,
   BlockSlug,
   Config,
+  Field,
   FieldSchemaMap,
   FlattenedBlocksField,
   UIFieldClientProps,
@@ -13,6 +14,7 @@ import { fieldsToJSONSchema, flattenAllFields, sanitizeFields } from 'payload'
 
 import { applyBaseFilterToFields } from '../../../utilities/applyBaseFilterToFields.js'
 import { createServerFeature } from '../../../utilities/createServerFeature.js'
+import { setRegisteredBlockSchema } from '../../../utilities/featureSchemaMapEntries.js'
 import { createNode } from '../../typeUtilities.js'
 import { blockPopulationPromiseHOC } from './graphQLPopulationPromise.js'
 import { i18n } from './i18n.js'
@@ -60,11 +62,17 @@ export const BlocksFeature = createServerFeature<
       validRelationships,
     })
 
+    /** Slugs of blocks referenced from `config.blocks`, which are already part of the client config */
+    const registeredBlockSlugs = new Set<string>()
+
     const blockConfigs: Block[] = []
     for (const _block of (sanitized[0] as BlocksField).blockReferences ??
       (sanitized[0] as BlocksField).blocks) {
       const block =
         typeof _block === 'string' ? _config?.blocks?.find((b) => b.slug === _block) : _block
+      if (typeof _block === 'string') {
+        registeredBlockSlugs.add(_block)
+      }
       if (!block) {
         throw new Error(
           `Block not found for slug: ${typeof _block === 'string' ? _block : _block?.slug}`,
@@ -82,6 +90,9 @@ export const BlocksFeature = createServerFeature<
       (sanitized[1] as BlocksField).blocks) {
       const block =
         typeof _block === 'string' ? _config?.blocks?.find((b) => b.slug === _block) : _block
+      if (typeof _block === 'string') {
+        registeredBlockSlugs.add(_block)
+      }
       if (!block) {
         throw new Error(
           `Block not found for slug: ${typeof _block === 'string' ? _block : _block?.slug}`,
@@ -95,6 +106,31 @@ export const BlocksFeature = createServerFeature<
     }
 
     let cachedSchemaMap: FieldSchemaMap | undefined
+
+    /**
+     * Marks schemas derived from a registered block, so they can be sent to the client as a reference to the
+     * block in the client config instead of in full
+     */
+    const markRegisteredBlockSchemas = ({
+      block,
+      blockSchema,
+      fieldsSchema,
+    }: {
+      block: Block
+      blockSchema: BlocksField
+      fieldsSchema: { fields: Field[] }
+    }) => {
+      if (!registeredBlockSlugs.has(block.slug)) {
+        return
+      }
+
+      setRegisteredBlockSchema({ blockSlug: block.slug, schema: blockSchema })
+
+      // Custom block components add a server-only field, so these fields differ from the registered block's
+      if (!block.admin?.components) {
+        setRegisteredBlockSchema({ blockSlug: block.slug, schema: fieldsSchema })
+      }
+    }
 
     return {
       ClientFeature: '@payloadcms/richtext-lexical/client#BlocksFeatureClient',
@@ -184,14 +220,15 @@ export const BlocksFeature = createServerFeature<
                 },
               })
             }
-            schemaMap.set(`lexical_blocks.${block.slug}.fields`, {
-              fields: blockFields,
-            })
-            schemaMap.set(`lexical_blocks.${block.slug}`, {
+            const fieldsSchema = { fields: blockFields }
+            schemaMap.set(`lexical_blocks.${block.slug}.fields`, fieldsSchema)
+            const blockSchema: BlocksField = {
               name: `lexical_blocks_${block.slug}`,
               type: 'blocks',
               blocks: [block],
-            })
+            }
+            schemaMap.set(`lexical_blocks.${block.slug}`, blockSchema)
+            markRegisteredBlockSchemas({ block, blockSchema, fieldsSchema })
           }
         }
 
@@ -213,15 +250,16 @@ export const BlocksFeature = createServerFeature<
               })
             }
 
-            schemaMap.set(`lexical_inline_blocks.${block.slug}.fields`, {
-              fields: blockFields,
-            })
+            const fieldsSchema = { fields: blockFields }
+            schemaMap.set(`lexical_inline_blocks.${block.slug}.fields`, fieldsSchema)
 
-            schemaMap.set(`lexical_inline_blocks.${block.slug}`, {
+            const blockSchema: BlocksField = {
               name: `lexical_inline_blocks_${block.slug}`,
               type: 'blocks',
               blocks: [block],
-            })
+            }
+            schemaMap.set(`lexical_inline_blocks.${block.slug}`, blockSchema)
+            markRegisteredBlockSchemas({ block, blockSchema, fieldsSchema })
           }
         }
 

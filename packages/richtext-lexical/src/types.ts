@@ -42,6 +42,7 @@ import type {
   SerializedInlineBlockNode,
 } from './nodeTypes.js'
 import type { InitialLexicalFormState } from './utilities/buildInitialState.js'
+import type { FeatureClientSchemaMapSource } from './utilities/featureClientSchemaMapSource.js'
 
 /**
  * Base constraint for serialized Lexical node types.
@@ -539,6 +540,22 @@ export type LexicalRichTextCellProps = DefaultServerCellComponentProps<
 export type AdapterProps = {
   editorConfig: SanitizedServerEditorConfig
 }
+
+/**
+ * Props of the `RichTextField` client component. The RSC entry sends the feature client schema map in its compact
+ * form, from which the full feature client schema map is derived on the client.
+ */
+export type LexicalRichTextFieldComponentProps = (
+  | {
+      featureClientSchemaMap: FeatureClientSchemaMap
+      featureClientSchemaMapSource?: never
+    }
+  | {
+      featureClientSchemaMap?: never
+      featureClientSchemaMapSource: FeatureClientSchemaMapSource
+    }
+) &
+  Omit<LexicalRichTextFieldProps, 'featureClientSchemaMap'>
 
 export type GeneratedFeatureProviderComponent = {
   clientFeature: FeatureProviderProviderClient<any, any>

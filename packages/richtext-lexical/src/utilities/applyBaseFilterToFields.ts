@@ -87,20 +87,17 @@ export function applyBaseFilterToFields(fields: Field[], config: SanitizedConfig
       }
     }
 
-    // Handle blocks
+    // Handle blocks. Each list keeps its shape: block slugs in `blockReferences` stay references
     if (field.type === 'blocks') {
-      const blocks = (field.blockReferences ?? field.blocks ?? []) as Block[]
+      const applyToBlock = (block: Block | string): Block | string =>
+        typeof block === 'string'
+          ? block
+          : { ...block, fields: applyBaseFilterToFields(block.fields, config) }
+
       return {
         ...field,
-        blocks: blocks.map((block) => {
-          if (typeof block === 'string') {
-            return block
-          }
-          return {
-            ...block,
-            fields: applyBaseFilterToFields(block.fields, config),
-          }
-        }),
+        ...(field.blockReferences && { blockReferences: field.blockReferences.map(applyToBlock) }),
+        blocks: (field.blocks ?? []).map(applyToBlock) as Block[],
       }
     }
 

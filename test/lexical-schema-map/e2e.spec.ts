@@ -185,6 +185,42 @@ test.describe('Lexical schema map', () => {
     expect(findBlockNodes(draft, blockSlugs.grid)).toHaveLength(4)
   })
 
+  test('should edit blocks with tabs, groups and custom components in nested editors', async () => {
+    const id = await openSeededPage()
+
+    await placeCaretAfter({ page, text: 'Section three' })
+    await page.keyboard.press('Enter')
+    await lexical.slashCommand('layout', true, 'Layout Field')
+
+    const layoutBlock = editorWithParagraph(page, 'Section three').locator(
+      '.LexicalEditorTheme__block-LayoutFields',
+    )
+    await expect(layoutBlock).toBeVisible()
+    await layoutBlock.locator('input[id$="groupText"]').fill('group value')
+    await layoutBlock.getByRole('button', { exact: true, name: 'Named Tab' }).click()
+    await layoutBlock.locator('input[id$="namedTabText"]').fill('tab value')
+
+    await placeCaretAfter({ page, text: 'Section three' })
+    await page.keyboard.press('Enter')
+    await lexical.slashCommand('callout', true, 'Labelled Callout')
+    await expect(page.locator('.callout-label')).toBeVisible()
+
+    await placeCaretAfter({ page, text: 'text panel' })
+    await page.keyboard.press('Enter')
+    await lexical.slashCommand('note', true, 'Inline Defined Note')
+    await expect(page.locator('.LexicalEditorTheme__block-InlineDefinedNote').first()).toBeVisible()
+
+    await expect
+      .poll(async () => {
+        const draft = await getDraft(id)
+        return findBlockNodes(draft, blockSlugs.layoutFields).map((node) => [
+          node.fields?.namedGroup?.groupText,
+          node.fields?.namedTab?.namedTabText,
+        ])
+      }, autosaveTimeout)
+      .toEqual([['group value', 'tab value']])
+  })
+
   test('should remove a nested block without affecting repeated editors', async () => {
     const id = await openSeededPage()
     const before = findBlockNodes(await getDraft(id), blockSlugs.textPanel).length

@@ -1,11 +1,14 @@
 import type { I18nClient } from '@payloadcms/translations'
-
-import {
-  type ClientField,
-  type ClientFieldSchemaMap,
-  type FieldSchemaMap,
-  type Payload,
+import type {
+  BlocksFieldClient,
+  ClientBlock,
+  ClientField,
+  ClientFieldSchemaMap,
+  FieldSchemaMap,
+  Payload,
 } from 'payload'
+
+import { createClientBlocks } from 'payload'
 import { getFromImportMap } from 'payload/shared'
 
 import type {
@@ -18,6 +21,13 @@ import type {
   LexicalRichTextFieldProps,
   SingleFeatureClientSchemaMap,
 } from '../types.js'
+import type {
+  FeatureClientSchemaMapSource,
+  FeatureClientSchemaMapSourceEntry,
+} from './featureClientSchemaMapSource.js'
+
+import { expandFeatureClientSchemaMap } from './featureClientSchemaMapSource.js'
+import { getFeatureEntryPaths, getRegisteredBlockSlug } from './featureSchemaMapEntries.js'
 type Args = {
   clientFieldSchemaMap: ClientFieldSchemaMap
   fieldSchemaMap: FieldSchemaMap
@@ -32,6 +42,8 @@ export function initLexicalFeatures(args: Args): {
   clientFeatures: LexicalRichTextFieldProps['clientFeatures']
   featureClientImportMap: Record<string, any>
   featureClientSchemaMap: FeatureClientSchemaMap
+  /** Compact form of `featureClientSchemaMap` to send to the client */
+  featureClientSchemaMapSource: FeatureClientSchemaMapSource
 } {
   const clientFeatures: LexicalRichTextFieldProps['clientFeatures'] = {}
 
@@ -41,6 +53,7 @@ export function initLexicalFeatures(args: Args): {
   )
 
   const featureClientSchemaMap: FeatureClientSchemaMap = {}
+  const featureClientSchemaMapSource: FeatureClientSchemaMapSource = {}
 
   /**
    * All modules added to the import map, keyed by the provided key, if feature.componentImports with type object is used
@@ -94,6 +107,14 @@ export function initLexicalFeatures(args: Args): {
         clientFieldSchemaMap: args.clientFieldSchemaMap,
         featureSchemaPath,
       })
+      featureClientSchemaMapSource[featureKey] = getFeatureClientSchemaMapSource({
+        clientFieldSchemaMap: args.clientFieldSchemaMap,
+        featureClientSchemaMap: featureClientSchemaMap[featureKey],
+        featureSchemaPath,
+        fieldSchemaMap: args.fieldSchemaMap,
+        i18n: args.i18n,
+        payload: args.payload,
+      })
     }
 
     if (
@@ -117,6 +138,7 @@ export function initLexicalFeatures(args: Args): {
     clientFeatures,
     featureClientImportMap,
     featureClientSchemaMap,
+    featureClientSchemaMapSource,
   }
 }
 
@@ -162,7 +184,7 @@ function getFeatureClientSchemaMap({
 
   for (const [key, entry] of clientFieldSchemaMap.entries()) {
     if (
-      !key.startsWith(featureSchemaPath) ||
+      !key.startsWith(`${featureSchemaPath}.`) ||
       key.indexOf(nestedEditorPathSegment, featureSchemaPath.length) !== -1
     ) {
       continue
@@ -186,4 +208,193 @@ function getFeatureClientSchemaMap({
   cachedByFeatureSchemaPath.set(featureSchemaPath, featureClientSchemaMap)
 
   return featureClientSchemaMap
+}
+
+const featureClientSchemaMapSourceCache = new WeakMap<
+  ClientFieldSchemaMap,
+  Map<string, FeatureClientSchemaMapSource[string]>
+>()
+
+/**
+ * Creates the compact form of a feature client schema map that is sent to the client:
+ * - only the entries the feature generated directly are sent; the client derives their sub-field entries
+ * - schemas of blocks registered in the config are taken from the client config instead of being sent
+ *
+ * The client derives exactly the same feature client schema map, so features can rely on all of its entries.
+ * If that cannot be verified, the full feature client schema map is sent instead.
+ */
+function getFeatureClientSchemaMapSource({
+  clientFieldSchemaMap,
+  featureClientSchemaMap,
+  featureSchemaPath,
+  fieldSchemaMap,
+  i18n,
+  payload,
+}: {
+  clientFieldSchemaMap: ClientFieldSchemaMap
+  featureClientSchemaMap: SingleFeatureClientSchemaMap
+  featureSchemaPath: string
+  fieldSchemaMap: FieldSchemaMap
+  i18n: I18nClient
+  payload: Payload
+}): FeatureClientSchemaMapSource[string] {
+  let cachedByFeatureSchemaPath = featureClientSchemaMapSourceCache.get(clientFieldSchemaMap)
+
+  if (!cachedByFeatureSchemaPath) {
+    cachedByFeatureSchemaPath = new Map()
+    featureClientSchemaMapSourceCache.set(clientFieldSchemaMap, cachedByFeatureSchemaPath)
+  }
+
+  const cachedSource = cachedByFeatureSchemaPath.get(featureSchemaPath)
+
+  if (cachedSource) {
+    return cachedSource
+  }
+
+  const source = getCompactFeatureClientSchemaMapSource({
+    clientFieldSchemaMap,
+    featureClientSchemaMap,
+    featureSchemaPath,
+    fieldSchemaMap,
+    i18n,
+    payload,
+  }) ?? {
+    entries: Object.entries(featureClientSchemaMap).map(([schemaPath, value]) => ({
+      key: schemaPath.slice(featureSchemaPath.length + 1),
+      value,
+    })),
+    featureSchemaPath,
+  }
+
+  cachedByFeatureSchemaPath.set(featureSchemaPath, source)
+
+  return source
+}
+
+/**
+ * Returns `undefined` if the client cannot derive exactly the same feature client schema map
+ */
+function getCompactFeatureClientSchemaMapSource({
+  clientFieldSchemaMap,
+  featureClientSchemaMap,
+  featureSchemaPath,
+  fieldSchemaMap,
+  i18n,
+  payload,
+}: {
+  clientFieldSchemaMap: ClientFieldSchemaMap
+  featureClientSchemaMap: SingleFeatureClientSchemaMap
+  featureSchemaPath: string
+  fieldSchemaMap: FieldSchemaMap
+  i18n: I18nClient
+  payload: Payload
+}): FeatureClientSchemaMapSource[string] | undefined {
+  const featureEntryPaths = getFeatureEntryPaths(fieldSchemaMap)
+
+  if (!featureEntryPaths) {
+    return undefined
+  }
+
+  const keyPrefix = `${featureSchemaPath}.`
+  const entries: FeatureClientSchemaMapSourceEntry[] = []
+
+  for (const [schemaPath, value] of Object.entries(featureClientSchemaMap)) {
+    if (!featureEntryPaths.has(schemaPath)) {
+      continue
+    }
+
+    const schema = fieldSchemaMap.get(schemaPath)!
+    const key = schemaPath.slice(keyPrefix.length)
+    const hasSubFields = 'fields' in schema ? true : undefined
+    const blockSlug = getRegisteredBlockSlug(schema)
+
+    if (!blockSlug) {
+      entries.push({ hasSubFields, key, value })
+    } else if (hasSubFields) {
+      entries.push({ blockSlug, hasSubFields, key })
+    } else {
+      entries.push({
+        blockSlug,
+        key,
+        value: [getBlocksFieldWithoutBlocks(value[0] as BlocksFieldClient)],
+      })
+    }
+  }
+
+  const source = { entries, featureSchemaPath }
+
+  return isSameAfterExpansion({
+    blocksMap: getRegisteredClientBlocks({ clientFieldSchemaMap, i18n, payload }),
+    featureClientSchemaMap,
+    source,
+  })
+    ? source
+    : undefined
+}
+
+function isSameAfterExpansion({
+  blocksMap,
+  featureClientSchemaMap,
+  source,
+}: {
+  blocksMap: Record<string, ClientBlock>
+  featureClientSchemaMap: SingleFeatureClientSchemaMap
+  source: FeatureClientSchemaMapSource[string]
+}): boolean {
+  try {
+    const expanded = expandFeatureClientSchemaMap({ blocksMap, source: { feature: source } })
+
+    return JSON.stringify(expanded.feature) === JSON.stringify(featureClientSchemaMap)
+  } catch {
+    return false
+  }
+}
+
+const blocksFieldWithoutBlocksCache = new WeakMap<BlocksFieldClient, ClientField>()
+
+function getBlocksFieldWithoutBlocks(field: BlocksFieldClient): ClientField {
+  let fieldWithoutBlocks = blocksFieldWithoutBlocksCache.get(field)
+
+  if (!fieldWithoutBlocks) {
+    fieldWithoutBlocks = { ...field, blocks: [] }
+    blocksFieldWithoutBlocksCache.set(field, fieldWithoutBlocks)
+  }
+
+  return fieldWithoutBlocks
+}
+
+const registeredClientBlocksCache = new WeakMap<ClientFieldSchemaMap, Record<string, ClientBlock>>()
+
+/**
+ * The client blocks of `config.blocks`, as the client config contains them
+ */
+function getRegisteredClientBlocks({
+  clientFieldSchemaMap,
+  i18n,
+  payload,
+}: {
+  clientFieldSchemaMap: ClientFieldSchemaMap
+  i18n: I18nClient
+  payload: Payload
+}): Record<string, ClientBlock> {
+  let blocksMap = registeredClientBlocksCache.get(clientFieldSchemaMap)
+
+  if (!blocksMap) {
+    blocksMap = {}
+
+    for (const block of createClientBlocks({
+      blocks: payload.config.blocks ?? [],
+      defaultIDType: payload.config.db.defaultIDType,
+      i18n,
+      importMap: payload.importMap,
+    })) {
+      if (typeof block !== 'string') {
+        blocksMap[block.slug] = block
+      }
+    }
+
+    registeredClientBlocksCache.set(clientFieldSchemaMap, blocksMap)
+  }
+
+  return blocksMap
 }

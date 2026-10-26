@@ -30,7 +30,7 @@ const editorWithBlocks = ({
   blocks,
   inlineBlocks,
 }: {
-  blocks: string[]
+  blocks: (Block | string)[]
   inlineBlocks?: string[]
 }) =>
   lexicalEditor({
@@ -105,6 +105,44 @@ export const Grid: Block = {
   ],
 }
 
+/**
+ * Field types whose schema paths have special rules (unnamed tabs/rows/collapsibles/groups use index paths)
+ */
+export const LayoutFields: Block = {
+  slug: blockSlugs.layoutFields,
+  fields: [
+    {
+      type: 'tabs',
+      tabs: [
+        { fields: [{ name: 'unnamedTabText', type: 'text' }], label: 'Unnamed tab' },
+        { name: 'namedTab', fields: [{ name: 'namedTabText', type: 'text' }] },
+      ],
+    },
+    { type: 'row', fields: [{ name: 'rowText', type: 'text' }] },
+    { type: 'collapsible', fields: [{ name: 'collapsibleText', type: 'text' }], label: 'Details' },
+    { name: 'namedGroup', type: 'group', fields: [{ name: 'groupText', type: 'text' }] },
+    { type: 'group', fields: [{ name: 'unnamedGroupText', type: 'text' }], label: 'Unnamed group' },
+    { name: 'author', type: 'relationship', relationTo: 'users' },
+  ],
+}
+
+/**
+ * Custom block components add a server-only `_components` field to the block's schema entry
+ */
+export const LabelledCallout: Block = {
+  slug: blockSlugs.labelledCallout,
+  admin: { components: { Label: '/components/CalloutLabel.js#CalloutLabel' } },
+  fields: [{ name: 'text', type: 'text' }],
+}
+
+/**
+ * Defined inline in an editor instead of being registered in `config.blocks`
+ */
+const InlineDefinedNote: Block = {
+  slug: 'InlineDefinedNote',
+  fields: [{ name: 'note', type: 'text' }],
+}
+
 export const TextPanel: Block = {
   slug: blockSlugs.textPanel,
   fields: [
@@ -112,7 +150,9 @@ export const TextPanel: Block = {
     {
       name: 'content',
       type: 'richText',
-      editor: editorWithBlocks({ blocks: [blockSlugs.grid, blockSlugs.buttonRow] }),
+      editor: editorWithBlocks({
+        blocks: [blockSlugs.grid, blockSlugs.buttonRow, InlineDefinedNote],
+      }),
     },
   ],
 }
@@ -182,6 +222,8 @@ export const RichTextSection: Block = {
           blockSlugs.textPanel,
           blockSlugs.accordion,
           blockSlugs.buttonRow,
+          blockSlugs.layoutFields,
+          blockSlugs.labelledCallout,
         ],
         inlineBlocks: [blockSlugs.inlineBadge],
       }),
@@ -231,6 +273,8 @@ export const PlainSection: Block = {
 
 export const allBlocks: Block[] = [
   InlineBadge,
+  LayoutFields,
+  LabelledCallout,
   ButtonRow,
   TextColumns,
   GridPanel,
