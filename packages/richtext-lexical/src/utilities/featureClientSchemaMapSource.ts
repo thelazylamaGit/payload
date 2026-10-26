@@ -85,11 +85,15 @@ function expandFeatureSource({
 
   for (const { blockSlug, hasSubFields, key, value } of featureSource.entries) {
     const schemaPath = `${featureSource.featureSchemaPath}.${key}`
-    const block = blockSlug ? blocksMap[blockSlug] : undefined
+    const registeredBlock = blockSlug ? blocksMap[blockSlug] : undefined
 
-    if (blockSlug && !block) {
+    if (blockSlug && !registeredBlock) {
       throw new Error(`Block "${blockSlug}" of "${schemaPath}" is missing in the client config`)
     }
+
+    // Like a map deserialized from the server, each derived map gets its own block objects: the blocks feature
+    // relies on new block objects to refresh nested editors, and must not mutate the client config's blocks.
+    const block = registeredBlock && { ...registeredBlock, fields: [...registeredBlock.fields] }
 
     let fields: ClientField[]
 
