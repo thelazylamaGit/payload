@@ -7,6 +7,7 @@ import {
   deepCopyObjectSimpleWithoutReactComponents,
   getDataByPath as getDataByPathFunc,
   getSiblingData as getSiblingDataFunc,
+  hasDraftsEnabled,
   hasDraftValidationEnabled,
   reduceFieldsToValues,
   uploadRequiresServerValidation,
@@ -42,6 +43,7 @@ import { abortAndIgnore, handleAbortRef } from '../../utilities/abortAndIgnore.j
 import { requests } from '../../utilities/api.js'
 import {
   BackgroundProcessingContext,
+  ContentModifiedContext,
   DocumentFormContext,
   FormContext,
   FormFieldsContext,
@@ -54,13 +56,22 @@ import {
 } from './context.js'
 import { errorMessages } from './errorMessages.js'
 import { fieldReducer } from './fieldReducer.js'
+import { getFormContentSnapshot, hasFormContentChanges } from './formContent.js'
 import { initContextState } from './initContextState.js'
 
 const baseClass = 'form'
 
 export const Form: React.FC<FormProps> = (props) => {
-  const { id, collectionSlug, docConfig, docPermissions, getDocPreferences, globalSlug } =
-    useDocumentInfo()
+  const {
+    id,
+    collectionSlug,
+    docConfig,
+    docPermissions,
+    getDocPreferences,
+    globalSlug,
+    hasPublishedDoc,
+    unpublishedVersionCount,
+  } = useDocumentInfo()
 
   const validateDrafts = hasDraftValidationEnabled(docConfig)
 
@@ -148,6 +159,11 @@ export const Form: React.FC<FormProps> = (props) => {
     _setBackgroundProcessing(backgroundProcessing)
   }, [])
 
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
+  const savedContentRef = useRef<ReturnType<typeof getFormContentSnapshot>>(undefined)
+  const baselineGenerationRef = useRef(0)
+
   const [modified, _setModified] = useState(false)
 
   /**
@@ -157,6 +173,11 @@ export const Form: React.FC<FormProps> = (props) => {
   const setModified = useCallback((modified: boolean) => {
     if (backgroundProcessingRef.current) {
       modifiedWhileProcessingRef.current = true
+    }
+
+    if (modified) {
+      // Enable actions immediately; the debounced comparison settles edits that were undone.
+      setHasUnsavedChanges(true)
     }
 
     _setModified(modified)
@@ -174,6 +195,24 @@ export const Form: React.FC<FormProps> = (props) => {
   contextRef.current.fields = formState
 
   const prevFormState = useRef(formState)
+
+  const getHasUnsavedChanges = useCallback(() => {
+    if (!isDocumentForm || !savedContentRef.current) {
+      return modified
+    }
+
+    return hasFormContentChanges(contextRef.current.fields, savedContentRef.current)
+  }, [isDocumentForm, modified])
+
+  const updateSavedContent = useCallback(
+    (state: FormState) => {
+      if (isDocumentForm) {
+        savedContentRef.current = getFormContentSnapshot(state)
+        setHasUnsavedChanges(false)
+      }
+    },
+    [isDocumentForm],
+  )
 
   const validateForm = useCallback(async () => {
     const validatedFieldState = {}
@@ -268,6 +307,38 @@ export const Form: React.FC<FormProps> = (props) => {
         return
       }
 
+      if (isDocumentForm && waitForAutocomplete) {
+        e?.preventDefault()
+        await wait(100)
+        if (contextRef.current.disabled) {
+          return
+        }
+      }
+
+      // Manual document saves share this guard, including Enter and keyboard shortcuts.
+      // Publishing an existing draft is a legitimate status transition even without edits.
+      const hasCustomOverrides =
+        typeof overridesFromArgs === 'function' ||
+        Object.keys(overridesFromArgs).some((key) => key !== '_status')
+      const isDraftSave = overridesFromArgs['_status'] === 'draft'
+      const canSkipUnchangedSubmission =
+        isDraftSave || !hasDraftsEnabled(docConfig) || (hasPublishedDoc && !unpublishedVersionCount)
+
+      if (
+        isDocumentForm &&
+        operation === 'update' &&
+        !backgroundProcessingRef.current &&
+        !hasCustomOverrides &&
+        canSkipUnchangedSubmission &&
+        !getHasUnsavedChanges()
+      ) {
+        e?.preventDefault()
+        e?.stopPropagation()
+        return
+      }
+
+      const baselineGeneration = baselineGenerationRef.current
+
       // create new toast promise which will resolve manually later
       let errorToast, successToast
 
@@ -306,11 +377,14 @@ export const Form: React.FC<FormProps> = (props) => {
         setDisabled(true)
       }
 
-      if (waitForAutocomplete) {
+      if (waitForAutocomplete && !isDocumentForm) {
         await wait(100)
       }
 
       const data = reduceFieldsToValues(contextRef.current.fields, true)
+      const submittedContent = isDocumentForm
+        ? getFormContentSnapshot(contextRef.current.fields)
+        : undefined
 
       const serializableFormState = deepCopyObjectSimpleWithoutReactComponents(
         contextRef.current.fields,
@@ -436,10 +510,31 @@ export const Form: React.FC<FormProps> = (props) => {
               formState: serializableFormState,
             })
 
-            if (newFormState) {
+            if (
+              newFormState &&
+              (!isDocumentForm || baselineGeneration === baselineGenerationRef.current)
+            ) {
+              const hasEditsSinceSubmission =
+                isDocumentForm &&
+                !dequal(getFormContentSnapshot(contextRef.current.fields), submittedContent)
+
+              // Use the server-normalised submitted state, never the current editor values.
+              updateSavedContent({
+                ...newFormState,
+                // Upload responses omit the transient file field. Remember the accepted File
+                // by reference so it does not count as a new upload after a successful save.
+                ...(submittedContent?.file instanceof File && !newFormState.file
+                  ? { file: { value: submittedContent.file } }
+                  : {}),
+              })
+              if (hasEditsSinceSubmission) {
+                setHasUnsavedChanges(true)
+              }
+
               dispatchFields({
                 type: 'MERGE_SERVER_STATE',
-                acceptValues,
+                acceptValues:
+                  hasEditsSinceSubmission && acceptValues === true ? false : acceptValues,
                 prevStateRef: prevFormState,
                 serverState: newFormState,
               })
@@ -534,6 +629,13 @@ export const Form: React.FC<FormProps> = (props) => {
     },
     [
       beforeSubmit,
+      docConfig,
+      getHasUnsavedChanges,
+      hasPublishedDoc,
+      isDocumentForm,
+      operation,
+      unpublishedVersionCount,
+      updateSavedContent,
       startRouteTransition,
       action,
       disableSuccessStatus,
@@ -660,6 +762,8 @@ export const Form: React.FC<FormProps> = (props) => {
 
       contextRef.current = { ...initContextState } as FormContextType
       setModified(false)
+      baselineGenerationRef.current += 1
+      updateSavedContent(newState)
       dispatchFields({ type: 'REPLACE_STATE', state: newState })
 
       abortResetFormRef.current = null
@@ -673,6 +777,7 @@ export const Form: React.FC<FormProps> = (props) => {
       getFormState,
       docPermissions,
       getDocPreferences,
+      updateSavedContent,
       locale,
       setModified,
     ],
@@ -763,6 +868,7 @@ export const Form: React.FC<FormProps> = (props) => {
   }, [initializingFromProps])
 
   contextRef.current.submit = submit
+  contextRef.current.getHasUnsavedChanges = getHasUnsavedChanges
   contextRef.current.getFields = getFields
   contextRef.current.getField = getField
   contextRef.current.getData = getData
@@ -808,6 +914,8 @@ export const Form: React.FC<FormProps> = (props) => {
 
   useEffect(() => {
     if (initialState) {
+      baselineGenerationRef.current += 1
+      updateSavedContent(initialState)
       contextRef.current = { ...initContextState } as FormContextType
       dispatchFields({
         type: 'REPLACE_STATE',
@@ -816,7 +924,7 @@ export const Form: React.FC<FormProps> = (props) => {
         state: initialState,
       })
     }
-  }, [initialState, dispatchFields])
+  }, [initialState, dispatchFields, updateSavedContent])
 
   useThrottledEffect(
     () => {
@@ -863,6 +971,10 @@ export const Form: React.FC<FormProps> = (props) => {
 
   useDebouncedEffect(
     () => {
+      if (isDocumentForm && savedContentRef.current) {
+        setHasUnsavedChanges(getHasUnsavedChanges())
+      }
+
       if ((isFirstRenderRef.current || !dequal(formState, prevFormState.current)) && modified) {
         executeOnChange(submitted)
       }
@@ -914,10 +1026,12 @@ export const Form: React.FC<FormProps> = (props) => {
                 <ProcessingContext value={processing}>
                   <BackgroundProcessingContext value={backgroundProcessing}>
                     <ModifiedContext value={modified}>
-                      {/* eslint-disable-next-line @eslint-react/no-context-provider */}
-                      <FormFieldsContext.Provider value={fieldsReducer}>
-                        {children}
-                      </FormFieldsContext.Provider>
+                      <ContentModifiedContext value={isDocumentForm ? hasUnsavedChanges : null}>
+                        {/* eslint-disable-next-line @eslint-react/no-context-provider */}
+                        <FormFieldsContext.Provider value={fieldsReducer}>
+                          {children}
+                        </FormFieldsContext.Provider>
+                      </ContentModifiedContext>
                     </ModifiedContext>
                   </BackgroundProcessingContext>
                 </ProcessingContext>

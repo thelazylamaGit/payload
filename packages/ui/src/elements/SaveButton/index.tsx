@@ -4,7 +4,7 @@ import type { SaveButtonClientProps } from 'payload'
 
 import React, { useRef } from 'react'
 
-import { useForm, useFormModified } from '../../forms/Form/context.js'
+import { useForm, useFormContentModified } from '../../forms/Form/context.js'
 import { FormSubmit } from '../../forms/Submit/index.js'
 import { useHotkey } from '../../hooks/useHotkey.js'
 import { useDocumentInfo } from '../../providers/DocumentInfo/index.js'
@@ -16,7 +16,7 @@ export function SaveButton({ label: labelProp }: SaveButtonClientProps) {
   const { uploadStatus } = useDocumentInfo()
   const { t } = useTranslation()
   const { submit } = useForm()
-  const modified = useFormModified()
+  const modified = useFormContentModified()
   const label = labelProp || t('general:save')
   const ref = useRef<HTMLButtonElement>(null)
   const editDepth = useEditDepth()

@@ -5,7 +5,7 @@ import type { SaveDraftButtonClientProps } from 'payload'
 import { formatAdminURL } from 'payload/shared'
 import React, { useCallback, useRef } from 'react'
 
-import { useForm, useFormModified } from '../../forms/Form/context.js'
+import { useForm, useFormContentModified } from '../../forms/Form/context.js'
 import { FormSubmit } from '../../forms/Submit/index.js'
 import { useHotkey } from '../../hooks/useHotkey.js'
 import { useConfig } from '../../providers/Config/index.js'
@@ -27,7 +27,7 @@ export function SaveDraftButton(props: SaveDraftButtonClientProps) {
   const { id, collectionSlug, globalSlug, setUnpublishedVersionCount, uploadStatus } =
     useDocumentInfo()
 
-  const modified = useFormModified()
+  const modified = useFormContentModified()
   const { code: locale } = useLocale()
   const ref = useRef<HTMLButtonElement>(null)
   const editDepth = useEditDepth()
@@ -63,7 +63,7 @@ export function SaveDraftButton(props: SaveDraftButtonClientProps) {
       })
     }
 
-    await submit({
+    const result = await submit({
       action,
       method,
       overrides: {
@@ -72,7 +72,9 @@ export function SaveDraftButton(props: SaveDraftButtonClientProps) {
       skipValidation: true,
     })
 
-    setUnpublishedVersionCount((count) => count + 1)
+    if (result && result.res.ok) {
+      setUnpublishedVersionCount((count) => count + 1)
+    }
   }, [submit, collectionSlug, globalSlug, api, locale, id, disabled, setUnpublishedVersionCount])
 
   useHotkey({ cmdCtrlKey: true, editDepth, keyCodes: ['s'] }, (e) => {

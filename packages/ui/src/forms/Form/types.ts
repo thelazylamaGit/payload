@@ -302,6 +302,8 @@ export type Context = {
   getDataByPath: GetDataByPath
   getField: GetField
   getFields: GetFields
+  /** Compare the latest document field values synchronously, without the UI debounce. */
+  getHasUnsavedChanges: () => boolean
   getSiblingData: GetSiblingData
   initializing: boolean
   /**

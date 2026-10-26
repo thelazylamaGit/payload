@@ -20,6 +20,7 @@ const ProcessingContext = createContext(false)
  * if autosave is running), this will be true.
  */
 const BackgroundProcessingContext = createContext(false)
+const ContentModifiedContext = createContext<boolean | null>(null)
 const ModifiedContext = createContext(false)
 const InitializingContext = createContext(false)
 const FormFieldsContext = createSelectorContext<FormFieldsContextType>([{}, () => null])
@@ -46,6 +47,13 @@ const useFormProcessing = (): boolean => use(ProcessingContext)
  * if autosave is running), this will be true.
  */
 const useFormBackgroundProcessing = (): boolean => use(BackgroundProcessingContext)
+/** Content comparison for document forms; other forms retain interaction-based tracking. */
+const useFormContentModified = (): boolean => {
+  const hasUnsavedChanges = use(ContentModifiedContext)
+  const modified = use(ModifiedContext)
+
+  return hasUnsavedChanges ?? modified
+}
 const useFormModified = (): boolean => use(ModifiedContext)
 const useFormInitializing = (): boolean => use(InitializingContext)
 
@@ -67,6 +75,7 @@ const useAllFormFields = (): FormFieldsContextType => useFullContext(FormFieldsC
 
 export {
   BackgroundProcessingContext,
+  ContentModifiedContext,
   DocumentFormContext,
   FormContext,
   FormFieldsContext,
@@ -79,6 +88,7 @@ export {
   useDocumentForm,
   useForm,
   useFormBackgroundProcessing,
+  useFormContentModified,
   useFormFields,
   useFormInitializing,
   useFormModified,

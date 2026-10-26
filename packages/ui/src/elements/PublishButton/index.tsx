@@ -13,7 +13,7 @@ import {
 import * as qs from 'qs-esm'
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { useForm, useFormModified } from '../../forms/Form/context.js'
+import { useForm, useFormContentModified } from '../../forms/Form/context.js'
 import { FormSubmit } from '../../forms/Submit/index.js'
 import { useHotkey } from '../../hooks/useHotkey.js'
 import { useConfig } from '../../providers/Config/index.js'
@@ -44,7 +44,7 @@ export function PublishButton({
 
   const { config, getEntityConfig } = useConfig()
   const { submit } = useForm()
-  const modified = useFormModified()
+  const modified = useFormContentModified()
   const editDepth = useEditDepth()
   const { code: localeCode } = useLocale()
   const { isModalOpen, toggleModal } = useModal()
