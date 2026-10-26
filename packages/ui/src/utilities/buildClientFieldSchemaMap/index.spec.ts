@@ -1,5 +1,7 @@
 import type { I18n } from '@payloadcms/translations'
 import type {
+  Block,
+  ClientBlock,
   ClientConfig,
   ClientField,
   FieldSchemaMap,
@@ -114,5 +116,71 @@ describe('buildClientFieldSchemaMap', () => {
 
   it('should not read the schema map once per rich text field', () => {
     expect(countSchemaMapIterations(50)).toBe(countSchemaMapIterations(1))
+  })
+
+  it('should share client schemas of the same server schema placed at several paths', () => {
+    const fields = createRichTextFields(2)
+    const schemaMap = createSchemaMap(fields)
+    const sharedBlock = { slug: 'cta', fields: [{ name: 'label', type: 'text' }] } as Block
+    const sharedBlockFields = { fields: sharedBlock.fields }
+
+    for (const field of fields) {
+      const blockPath = `pages.${field.name}.lexical_internal_feature.blocks.lexical_blocks.cta`
+      schemaMap.set(blockPath, sharedBlock)
+      schemaMap.set(`${blockPath}.fields`, sharedBlockFields)
+      schemaMap.set(`${blockPath}.label`, sharedBlock.fields[0]!)
+    }
+
+    const { clientFieldSchemaMap } = buildClientFieldSchemaMap({
+      collectionSlug: 'pages',
+      config: createConfig(fields),
+      i18n,
+      payload,
+      schemaMap,
+    })
+
+    const getEntry = (richTextName: string, suffix = '') =>
+      clientFieldSchemaMap.get(
+        `pages.${richTextName}.lexical_internal_feature.blocks.lexical_blocks.cta${suffix}`,
+      )
+
+    expect(getEntry('content0')).toMatchObject({ slug: 'cta' })
+    expect(getEntry('content0')).toBe(getEntry('content1'))
+    expect(getEntry('content0', '.fields')).toBe(getEntry('content1', '.fields'))
+    expect(getEntry('content0', '.label')).toBe(getEntry('content1', '.label'))
+    expect((getEntry('content0', '.fields') as { fields: ClientField[] }).fields[0]).toBe(
+      getEntry('content0', '.label'),
+    )
+  })
+
+  it('should not share client schemas of different server schemas with the same slug', () => {
+    const fields = createRichTextFields(2)
+    const schemaMap = createSchemaMap(fields)
+
+    for (const field of fields) {
+      schemaMap.set(`pages.${field.name}.lexical_internal_feature.blocks.lexical_blocks.cta`, {
+        slug: 'cta',
+        fields: [{ name: 'label', type: 'text', label: field.name }],
+      })
+    }
+
+    const { clientFieldSchemaMap } = buildClientFieldSchemaMap({
+      collectionSlug: 'pages',
+      config: createConfig(fields),
+      i18n,
+      payload,
+      schemaMap,
+    })
+
+    const content0Block = clientFieldSchemaMap.get(
+      'pages.content0.lexical_internal_feature.blocks.lexical_blocks.cta',
+    ) as ClientBlock
+    const content1Block = clientFieldSchemaMap.get(
+      'pages.content1.lexical_internal_feature.blocks.lexical_blocks.cta',
+    ) as ClientBlock
+
+    expect(content0Block).not.toBe(content1Block)
+    expect(content0Block.fields[0]).toMatchObject({ label: 'content0' })
+    expect(content1Block.fields[0]).toMatchObject({ label: 'content1' })
   })
 })

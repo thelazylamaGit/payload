@@ -1,6 +1,11 @@
 import type { I18nClient } from '@payloadcms/translations'
 
-import { type ClientFieldSchemaMap, type FieldSchemaMap, type Payload } from 'payload'
+import {
+  type ClientField,
+  type ClientFieldSchemaMap,
+  type FieldSchemaMap,
+  type Payload,
+} from 'payload'
 import { getFromImportMap } from 'payload/shared'
 
 import type {
@@ -8,7 +13,11 @@ import type {
   FeatureProviderProviderClient,
 } from '../features/typesClient.js'
 import type { SanitizedServerEditorConfig } from '../lexical/config/types.js'
-import type { FeatureClientSchemaMap, LexicalRichTextFieldProps } from '../types.js'
+import type {
+  FeatureClientSchemaMap,
+  LexicalRichTextFieldProps,
+  SingleFeatureClientSchemaMap,
+} from '../types.js'
 type Args = {
   clientFieldSchemaMap: ClientFieldSchemaMap
   fieldSchemaMap: FieldSchemaMap
@@ -81,14 +90,10 @@ export function initLexicalFeatures(args: Args): {
     if (resolvedFeature.generateSchemaMap) {
       const featureSchemaPath = `${args.schemaPath}.lexical_internal_feature.${featureKey}`
 
-      featureClientSchemaMap[featureKey] = {}
-
-      // Like args.fieldSchemaMap, we only want to include the sub-fields of the current feature
-      for (const [key, entry] of args.clientFieldSchemaMap.entries()) {
-        if (key.startsWith(featureSchemaPath)) {
-          featureClientSchemaMap[featureKey][key] = 'fields' in entry ? entry.fields : [entry]
-        }
-      }
+      featureClientSchemaMap[featureKey] = getFeatureClientSchemaMap({
+        clientFieldSchemaMap: args.clientFieldSchemaMap,
+        featureSchemaPath,
+      })
     }
 
     if (
@@ -113,4 +118,72 @@ export function initLexicalFeatures(args: Args): {
     featureClientImportMap,
     featureClientSchemaMap,
   }
+}
+
+const nestedEditorPathSegment = '.lexical_internal_feature.'
+
+const featureClientSchemaMapCache = new WeakMap<
+  ClientFieldSchemaMap,
+  Map<string, SingleFeatureClientSchemaMap>
+>()
+
+const wrappedEntryCache = new WeakMap<object, ClientField[]>()
+
+/**
+ * Collects the client schemas of a feature's sub-fields.
+ *
+ * Entries of rich text editors nested inside this feature (e.g. a rich text field in a block) are excluded:
+ * nested editors are rendered with their own feature client schema map.
+ *
+ * The result only depends on the (cached) client field schema map and the feature schema path, so every
+ * instance of the same editor shares one object. This lets React Flight send it once per response.
+ */
+function getFeatureClientSchemaMap({
+  clientFieldSchemaMap,
+  featureSchemaPath,
+}: {
+  clientFieldSchemaMap: ClientFieldSchemaMap
+  featureSchemaPath: string
+}): SingleFeatureClientSchemaMap {
+  let cachedByFeatureSchemaPath = featureClientSchemaMapCache.get(clientFieldSchemaMap)
+
+  if (!cachedByFeatureSchemaPath) {
+    cachedByFeatureSchemaPath = new Map()
+    featureClientSchemaMapCache.set(clientFieldSchemaMap, cachedByFeatureSchemaPath)
+  }
+
+  const cachedFeatureClientSchemaMap = cachedByFeatureSchemaPath.get(featureSchemaPath)
+
+  if (cachedFeatureClientSchemaMap) {
+    return cachedFeatureClientSchemaMap
+  }
+
+  const featureClientSchemaMap: SingleFeatureClientSchemaMap = {}
+
+  for (const [key, entry] of clientFieldSchemaMap.entries()) {
+    if (
+      !key.startsWith(featureSchemaPath) ||
+      key.indexOf(nestedEditorPathSegment, featureSchemaPath.length) !== -1
+    ) {
+      continue
+    }
+
+    if ('fields' in entry) {
+      featureClientSchemaMap[key] = entry.fields
+      continue
+    }
+
+    let wrappedEntry = wrappedEntryCache.get(entry)
+
+    if (!wrappedEntry) {
+      wrappedEntry = [entry as ClientField]
+      wrappedEntryCache.set(entry, wrappedEntry)
+    }
+
+    featureClientSchemaMap[key] = wrappedEntry
+  }
+
+  cachedByFeatureSchemaPath.set(featureSchemaPath, featureClientSchemaMap)
+
+  return featureClientSchemaMap
 }

@@ -94,6 +94,8 @@ export const BlocksFeature = createServerFeature<
       })
     }
 
+    let cachedSchemaMap: FieldSchemaMap | undefined
+
     return {
       ClientFeature: '@payloadcms/richtext-lexical/client#BlocksFeatureClient',
       clientFeatureProps: { toolbarPlacement: _props.toolbarPlacement ?? 'toolbar' },
@@ -152,11 +154,18 @@ export const BlocksFeature = createServerFeature<
           return currentSchema
         },
       },
-      generateSchemaMap: ({ config }) => {
+      generateSchemaMap: () => {
         /**
          * Add sub-fields to the schemaMap. E.g. if you have an array field as part of the block, and it runs addRow, it will request these
          * sub-fields from the component map. Thus, we need to put them in the component map here.
+         *
+         * The entries only depend on this feature's blocks, so they are created once and shared by every schema path
+         * this editor is placed at. This lets the client schema map reuse the same client schemas for all of them.
          */
+        if (cachedSchemaMap) {
+          return new Map(cachedSchemaMap)
+        }
+
         const schemaMap: FieldSchemaMap = new Map()
 
         if (blockConfigs?.length) {
@@ -216,7 +225,9 @@ export const BlocksFeature = createServerFeature<
           }
         }
 
-        return schemaMap
+        cachedSchemaMap = schemaMap
+
+        return new Map(schemaMap)
       },
       i18n,
       markdownTransformers: getBlockMarkdownTransformers({

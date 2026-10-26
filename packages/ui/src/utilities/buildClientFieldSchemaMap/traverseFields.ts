@@ -12,7 +12,18 @@ import type {
 import { createClientBlocks, createClientFields } from 'payload'
 import { fieldAffectsData, getFieldPaths, tabHasName } from 'payload/shared'
 
+/**
+ * Rich text sub-field schemas converted to client schemas, keyed by their server schema.
+ * The same server schema can be placed at many schema paths (e.g. a block referenced by several editors),
+ * so it is converted once and the client schema object is shared, which lets React Flight deduplicate it.
+ */
+type ClientSchemaCache = WeakMap<ServerSchema, ClientSchema>
+
+type ClientSchema = ClientFieldSchemaMap extends Map<string, infer V> ? V : never
+type ServerSchema = FieldSchemaMap extends Map<string, infer V> ? V : never
+
 type Args = {
+  clientSchemaCache?: ClientSchemaCache
   clientSchemaMap: ClientFieldSchemaMap
   config: ClientConfig
   fields: (ClientField | TabAsFieldClient)[]
@@ -24,6 +35,7 @@ type Args = {
 }
 
 export const traverseFields = ({
+  clientSchemaCache = new WeakMap(),
   clientSchemaMap,
   config,
   fields,
@@ -46,6 +58,7 @@ export const traverseFields = ({
     switch (field.type) {
       case 'array': {
         traverseFields({
+          clientSchemaCache,
           clientSchemaMap,
           config,
           fields: field.fields,
@@ -72,6 +85,7 @@ export const traverseFields = ({
 
           clientSchemaMap.set(blockSchemaPath, block)
           traverseFields({
+            clientSchemaCache,
             clientSchemaMap,
             config,
             fields: block.fields,
@@ -88,6 +102,7 @@ export const traverseFields = ({
       case 'collapsible':
       case 'row': {
         traverseFields({
+          clientSchemaCache,
           clientSchemaMap,
           config,
           fields: field.fields,
@@ -103,6 +118,7 @@ export const traverseFields = ({
       case 'group': {
         if (fieldAffectsData(field)) {
           traverseFields({
+            clientSchemaCache,
             clientSchemaMap,
             config,
             fields: field.fields,
@@ -114,6 +130,7 @@ export const traverseFields = ({
           })
         } else {
           traverseFields({
+            clientSchemaCache,
             clientSchemaMap,
             config,
             fields: field.fields,
@@ -140,48 +157,11 @@ export const traverseFields = ({
           getRichTextSubFieldsByPath({ schemaMap }).get(schemaPath) ?? new Map()
 
         // Now loop through them, convert each entry to a client field and add it to the client schema map.
-        // Schema map values are a union: Block | Field | Tab | { fields: Field[] }.
-        // Each variant needs different conversion to strip server-only properties.
         for (const [path, subField] of richTextFieldSchemaMap.entries()) {
-          if ('slug' in subField) {
-            const clientBlocks = createClientBlocks({
-              blocks: [subField],
-              defaultIDType: payload.config.db.defaultIDType,
-              i18n,
-              importMap: payload.importMap,
-            })
-
-            clientSchemaMap.set(path, clientBlocks[0] as ClientBlock)
-            continue
-          }
-
-          if ('type' in subField) {
-            const clientFields = createClientFields({
-              defaultIDType: payload.config.db.defaultIDType,
-              disableAddingID: true,
-              fields: [subField],
-              i18n,
-              importMap: payload.importMap,
-            })
-
-            clientSchemaMap.set(path, clientFields[0])
-            continue
-          }
-
-          if ('fields' in subField) {
-            const clientFields = createClientFields({
-              defaultIDType: payload.config.db.defaultIDType,
-              disableAddingID: true,
-              fields: subField.fields,
-              i18n,
-              importMap: payload.importMap,
-            })
-
-            clientSchemaMap.set(path, { fields: clientFields })
-            continue
-          }
-
-          subField satisfies never
+          clientSchemaMap.set(
+            path,
+            getClientSchema({ cache: clientSchemaCache, i18n, payload, schema: subField }),
+          )
         }
         break
       }
@@ -190,6 +170,7 @@ export const traverseFields = ({
         const isNamedTab = tabHasName(field)
 
         traverseFields({
+          clientSchemaCache,
           clientSchemaMap,
           config,
           fields: field.fields,
@@ -205,6 +186,7 @@ export const traverseFields = ({
 
       case 'tabs': {
         traverseFields({
+          clientSchemaCache,
           clientSchemaMap,
           config,
           fields: field.tabs.map((tab) => ({ ...tab, type: 'tab' })),
@@ -219,6 +201,60 @@ export const traverseFields = ({
       }
     }
   }
+}
+
+/**
+ * Converts a rich text sub-field schema map value to its client counterpart.
+ * Schema map values are a union: Block | Field | Tab | { fields: Field[] }.
+ * Each variant needs different conversion to strip server-only properties.
+ */
+function getClientSchema({
+  cache,
+  i18n,
+  payload,
+  schema,
+}: {
+  cache: ClientSchemaCache
+  i18n: I18n<any, any>
+  payload: Payload
+  schema: ServerSchema
+}): ClientSchema {
+  const cachedClientSchema = cache.get(schema)
+
+  if (cachedClientSchema) {
+    return cachedClientSchema
+  }
+
+  let clientSchema: ClientSchema
+
+  if ('slug' in schema) {
+    clientSchema = createClientBlocks({
+      blocks: [schema],
+      defaultIDType: payload.config.db.defaultIDType,
+      i18n,
+      importMap: payload.importMap,
+    })[0] as ClientBlock
+  } else if ('type' in schema) {
+    clientSchema = createClientFields({
+      defaultIDType: payload.config.db.defaultIDType,
+      disableAddingID: true,
+      fields: [schema],
+      i18n,
+      importMap: payload.importMap,
+    })[0]!
+  } else if ('fields' in schema) {
+    clientSchema = {
+      fields: schema.fields.map(
+        (field) => getClientSchema({ cache, i18n, payload, schema: field }) as ClientField,
+      ),
+    }
+  } else {
+    return schema satisfies never
+  }
+
+  cache.set(schema, clientSchema)
+
+  return clientSchema
 }
 
 const richTextSubFieldsCache = new WeakMap<FieldSchemaMap, Map<string, FieldSchemaMap>>()
