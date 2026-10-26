@@ -587,13 +587,44 @@ describe('Block fields', () => {
 
       await copyPasteField({
         page,
-        action: 'paste',
+        action: 'paste-below',
         fieldName: 'blocks',
         rowIndex: 0,
       })
 
       await expect(rowTextInput).toHaveValue('first block')
       await expect(field.locator('#field-blocks__1__text')).toHaveValue(textVal)
+    })
+
+    test('should replace a row with Paste Row', async () => {
+      await page.goto(url.create)
+      const field = page.locator('#field-blocks')
+      const rows = field.locator('> .blocks-field__rows > div > .blocks-field__row')
+      const rowTextInput = field.locator('#blocks-row-0').locator('#field-blocks__0__text')
+
+      const textVal = 'row one copy'
+      await rowTextInput.fill(textVal)
+
+      await copyPasteField({
+        page,
+        fieldName: 'blocks',
+        rowIndex: 0,
+      })
+
+      await page.reload()
+
+      await expect(rowTextInput).toHaveValue('first block')
+      const rowCount = await rows.count()
+
+      await copyPasteField({
+        page,
+        action: 'paste',
+        fieldName: 'blocks',
+        rowIndex: 0,
+      })
+
+      await expect(rowTextInput).toHaveValue(textVal)
+      await expect(rows).toHaveCount(rowCount)
     })
 
     test('should copy a block row and paste into a field with the same schema', async () => {
@@ -636,7 +667,7 @@ describe('Block fields', () => {
       const fieldInput = field.locator('#field-duplicate__0__text')
       await expect(fieldInput).toHaveValue('first block')
 
-      await copyPasteField({ page, action: 'paste', fieldName: 'duplicate', rowIndex: 0 })
+      await copyPasteField({ page, action: 'paste-below', fieldName: 'duplicate', rowIndex: 0 })
 
       const rowsContainer = page.locator('#field-duplicate > div.blocks-field__rows').first()
       await expect(rowsContainer).toBeVisible()
@@ -667,7 +698,7 @@ describe('Block fields', () => {
         page,
         fieldName: 'blocks',
         rowIndex: 4,
-        action: 'paste',
+        action: 'paste-below',
       })
 
       const textInputRowTwo = field.locator('#field-blocks__5__subBlocks__1__text')
@@ -705,7 +736,7 @@ describe('Block fields', () => {
         page,
         fieldName: 'blocks',
         rowIndex: 2,
-        action: 'paste',
+        action: 'paste-below',
       })
 
       await expect(subArrayContainer).toHaveCount(2)
