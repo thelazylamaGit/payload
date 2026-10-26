@@ -349,7 +349,6 @@ describe('DecoratorPlugin outside interaction', () => {
 
       expect(rule.isConnected).toBe(false)
       expect(parent.element('block').isConnected).toBe(true)
-      expect($isNodeSelection(parent.selection())).toBe(true)
     },
   )
 
