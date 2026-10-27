@@ -11,9 +11,13 @@ import {
 
 const field = <T>(value: T) => ({ initialValue: value, value })
 
+const initialRichText = {
+  root: { children: [{ text: 'Hello', type: 'text' }], type: 'root' },
+}
+
 const initialState: FormState = {
   title: field('Original'),
-  richText: field({ root: { children: [{ text: 'Hello', type: 'text' }], type: 'root' } }),
+  richText: field(initialRichText),
   blocks: { disableFormData: true, rows: [{ id: 'one' }, { id: 'two' }], value: 2 },
   'blocks.0.id': field('one'),
   'blocks.0.blockType': field('content'),
@@ -67,7 +71,7 @@ describe('form content comparison', () => {
 
   it('should detect and undo an edit to actual Lexical text JSON', () => {
     const saved = getFormContentSnapshot(initialState)
-    const changed = structuredClone(initialState.richText.value)
+    const changed = structuredClone(initialRichText)
 
     changed.root.children[0].text = 'Edited text'
 
