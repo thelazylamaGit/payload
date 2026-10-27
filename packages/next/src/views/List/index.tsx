@@ -29,6 +29,7 @@ import React, { Fragment } from 'react'
 
 import { getDocumentPermissions } from '../Document/getDocumentPermissions.js'
 import { enrichDocsWithVersionStatus } from './enrichDocsWithVersionStatus.js'
+import { getInitialGroupBy } from './getInitialGroupBy.js'
 import { handleGroupBy } from './handleGroupBy.js'
 import { renderListViewSlots } from './renderListViewSlots.js'
 import { resolveAllFilterOptions } from './resolveAllFilterOptions.js'
@@ -176,7 +177,12 @@ export const renderListView = async (
   if (queryPreset?.where && !query.where) {
     query.where = queryPreset.where
   }
-  query.groupBy = query.groupBy ?? queryPreset?.groupBy ?? collectionPreferences?.groupBy
+  query.groupBy = getInitialGroupBy({
+    collectionConfig,
+    collectionPreferences,
+    groupByFromQuery: query.groupBy,
+    queryPreset,
+  })
 
   const columnPreference = query.columns
     ? transformColumnsToPreferences(query.columns)

@@ -159,7 +159,7 @@ The following options are available:
 | `description`                | Text to display below the Collection label in the List View to give editors more information. Alternatively, you can use the `admin.components.Description` to render a React component. [More details](#custom-components). |
 | `defaultColumns`             | Array of field names that correspond to which columns to show by default in this Collection's List View.                                                                                                                     |
 | `disableCopyToLocale`        | Disables the "Copy to Locale" button while editing documents within this Collection. Only applicable when localization is enabled.                                                                                           |
-| `groupBy`                    | Beta. Enable grouping by a field in the list view.                                                                                                                                                                           |
+| `groupBy`                    | Beta. Enable grouping by a field in the list view. Set to `true`, or to a field name (e.g. `'status'`) to group by that field by default. [More details](#group-by).                                                         |
 | `hideAPIURL`                 | Hides the "API URL" meta field while editing documents within this Collection.                                                                                                                                               |
 | `enableRichTextLink`         | The [Rich Text](../fields/rich-text) field features a `Link` element which allows for users to automatically reference related documents within their rich text. Set to `true` by default.                                   |
 | `enableRichTextRelationship` | The [Rich Text](../fields/rich-text) field features a `Relationship` element which allows for users to automatically reference related documents within their rich text. Set to `true` by default.                           |
@@ -180,6 +180,26 @@ The following options are available:
   field (i.e. title) from the related document instead, create a virtual field
   that extracts the desired data, and set `useAsTitle` to that virtual field.
 </Banner>
+
+### Group By
+
+Set `admin.groupBy` to `true` to let users group the List View by a field. To group by a field by default, pass its name instead. Prefix it with `-` to sort the groups in descending order:
+
+```ts
+import type { CollectionConfig } from 'payload'
+
+export const Posts: CollectionConfig = {
+  slug: 'posts',
+  admin: {
+    groupBy: 'status',
+  },
+  fields: [
+    // ...
+  ],
+}
+```
+
+The field name only sets the initial grouping. Users can still change or clear it, and a `groupBy` URL parameter, the selected query preset or the user's saved preferences take precedence over it.
 
 ### Custom Components
 

@@ -536,10 +536,13 @@ export type CollectionAdminOptions = {
   /**
    * @description Enable grouping by a field in the list view.
    * Uses `payload.findDistinct` under the hood to populate the group-by options.
+   * - Set to `true` to enable grouping without a default.
+   * - Provide a field name to enable grouping and initially group by that field. Prefix with `-` to sort groups descending.
+   *   Users can still change or clear the grouping, and URL params, query presets and saved preferences take precedence.
    *
    * @experimental This option is currently in beta and may change in future releases. Use at your own risk.
    */
-  groupBy?: boolean
+  groupBy?: boolean | string
   /**
    * Exclude the collection from the admin nav and routes
    */
