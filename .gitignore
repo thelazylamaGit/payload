@@ -368,3 +368,4 @@ test/evals/eval-results/runs/
 
 # Local fork package checksums (tarballs are already ignored).
 /artifacts/SHA256SUMS
+/artifacts/pnpm-overrides.yaml

@@ -8,11 +8,14 @@ from pathlib import PurePosixPath
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('root', nargs='?', default='artifacts')
 parser.add_argument('--include-lexical', action='store_true')
+parser.add_argument('--include-core', action='store_true', help='also expect payload and @payloadcms/next')
 args = parser.parse_args()
 root = args.root
 expected = {'@payloadcms/ui', '@payloadcms/translations'}
 if args.include_lexical:
     expected.add('@payloadcms/richtext-lexical')
+if args.include_core:
+    expected.update({'payload', '@payloadcms/next'})
 found = set()
 versions = set()
 for filename in glob.glob(f'{root}/*.tgz'):
@@ -54,6 +57,12 @@ for filename in glob.glob(f'{root}/*.tgz'):
             english = archive.extractfile('package/dist/languages/en.js').read().decode()
             for label in ('Copy Block', 'Paste Block Below', 'Paste Block'):
                 assert label in english, label
+        elif name == 'payload':
+            types = archive.extractfile('package/dist/collections/config/types.d.ts').read().decode()
+            assert 'groupBy?: boolean | string' in types, 'admin.groupBy string type'
+        elif name == '@payloadcms/next':
+            for path in ('dist/views/List/getInitialGroupBy.js', 'dist/views/List/getOptionLabel.js'):
+                assert 'package/' + path in files, path
         print(f'Verified {name}@{manifest["version"]}: {len(files)} packed entries')
 assert found == expected, found
 assert len(versions) == 1, versions
