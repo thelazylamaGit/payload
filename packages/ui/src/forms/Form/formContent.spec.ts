@@ -3,7 +3,11 @@ import type { FormState } from 'payload'
 import { describe, expect, it } from 'vitest'
 
 import { fieldReducer } from './fieldReducer.js'
-import { getFormContentSnapshot, hasFormContentChanges } from './formContent.js'
+import {
+  getFormContentSnapshot,
+  getIgnoredDocumentFields,
+  hasFormContentChanges,
+} from './formContent.js'
 
 const field = <T>(value: T) => ({ initialValue: value, value })
 
@@ -22,6 +26,56 @@ const initialState: FormState = {
 }
 
 describe('form content comparison', () => {
+  it('should ignore system timestamps and publication status while keeping nested metadata meaningful', () => {
+    const ignored = getIgnoredDocumentFields({ slug: 'posts' })
+    const original = {
+      title: field('Original'),
+      updatedAt: field('old'),
+      _status: field('published'),
+      'group.updatedAt': field('content date'),
+    }
+    const saved = getFormContentSnapshot(original, ignored)
+
+    expect(
+      hasFormContentChanges(
+        { ...original, updatedAt: field('new'), _status: field('draft') },
+        saved,
+        ignored,
+      ),
+    ).toBe(false)
+    expect(
+      hasFormContentChanges(
+        { ...original, 'group.updatedAt': field('edited content date') },
+        saved,
+        ignored,
+      ),
+    ).toBe(true)
+  })
+
+  it('should preserve a custom timestamp field when system timestamps are disabled', () => {
+    const ignored = getIgnoredDocumentFields({ slug: 'posts', timestamps: false })
+    const original = { updatedAt: field('meaningful date') }
+
+    expect(
+      hasFormContentChanges(
+        { updatedAt: field('edited date') },
+        getFormContentSnapshot(original, ignored),
+        ignored,
+      ),
+    ).toBe(true)
+  })
+
+  it('should detect and undo an edit to actual Lexical text JSON', () => {
+    const saved = getFormContentSnapshot(initialState)
+    const changed = structuredClone(initialState.richText.value)
+
+    changed.root.children[0].text = 'Edited text'
+
+    expect(hasFormContentChanges({ ...initialState, richText: field(changed) }, saved)).toBe(true)
+    changed.root.children[0].text = 'Hello'
+    expect(hasFormContentChanges({ ...initialState, richText: field(changed) }, saved)).toBe(false)
+  })
+
   it.each(['title', 'richText', 'blocks.0.content', 'relationship', 'upload'])(
     'should clear unsaved changes when %s is edited and restored',
     (path) => {

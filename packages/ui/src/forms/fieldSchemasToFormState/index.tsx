@@ -13,6 +13,7 @@ import type {
   SelectType,
 } from 'payload'
 
+import type { AddFieldStatePromiseArgs } from './addFieldStatePromise.js'
 import type { RenderFieldMethod } from './types.js'
 
 import { calculateDefaultValues } from './calculateDefaultValues/index.js'
@@ -51,6 +52,7 @@ type Args = {
    * then the field schema map is not required.
    */
   fieldSchemaMap: FieldSchemaMap | undefined
+  filter?: (args: AddFieldStatePromiseArgs) => boolean
   id?: number | string
   /**
    * Validation, filterOptions and read access control will receive the `blockData`, which is the data of the nearest parent block. You can pass in
@@ -88,6 +90,7 @@ export const fieldSchemasToFormState = async ({
   documentData,
   fields,
   fieldSchemaMap,
+  filter,
   initialBlockData,
   mockRSCs,
   operation,
@@ -144,6 +147,7 @@ export const fieldSchemasToFormState = async ({
       data: dataWithDefaultValues,
       fields,
       fieldSchemaMap,
+      filter,
       fullData,
       mockRSCs,
       operation,

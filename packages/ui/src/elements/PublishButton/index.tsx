@@ -13,7 +13,7 @@ import {
 import * as qs from 'qs-esm'
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { useForm, useFormContentModified } from '../../forms/Form/context.js'
+import { useForm, useFormContentModified, useFormUnpublished } from '../../forms/Form/context.js'
 import { FormSubmit } from '../../forms/Submit/index.js'
 import { useHotkey } from '../../hooks/useHotkey.js'
 import { useConfig } from '../../providers/Config/index.js'
@@ -45,6 +45,8 @@ export function PublishButton({
   const { config, getEntityConfig } = useConfig()
   const { submit } = useForm()
   const modified = useFormContentModified()
+  const currentLocaleHasChanges = useFormUnpublished()
+  const allLocalesHaveChanges = useFormUnpublished(true)
   const editDepth = useEditDepth()
   const { code: localeCode } = useLocale()
   const { isModalOpen, toggleModal } = useModal()
@@ -70,11 +72,6 @@ export function PublishButton({
   }, [collectionSlug, globalSlug, getEntityConfig])
 
   const hasNewerVersions = unpublishedVersionCount > 0
-
-  const canPublish =
-    hasPublishPermission &&
-    (modified || hasNewerVersions || !hasPublishedDoc) &&
-    uploadStatus !== 'uploading'
 
   const scheduledPublishEnabled = hasScheduledPublishEnabled(entityConfig)
 
@@ -185,7 +182,7 @@ export function PublishButton({
       },
     })
 
-    if (result) {
+    if (result && result.res.ok) {
       setUnpublishedVersionCount(0)
       setMostRecentVersionIsAutosaved(false)
       setHasPublishedDoc(true)
@@ -234,7 +231,7 @@ export function PublishButton({
         },
       })
 
-      if (result) {
+      if (result && result.res.ok) {
         setUnpublishedVersionCount(0)
         setMostRecentVersionIsAutosaved(false)
         setHasPublishedDoc(true)
@@ -257,6 +254,12 @@ export function PublishButton({
   const isDefaultPublishAll =
     !isSpecificLocalePublishEnabled ||
     (localization && localization?.defaultLocalePublishOption !== 'active')
+
+  const canPublish =
+    hasPublishPermission &&
+    ((isDefaultPublishAll ? allLocalesHaveChanges : currentLocaleHasChanges) ??
+      (modified || hasNewerVersions || !hasPublishedDoc)) &&
+    uploadStatus !== 'uploading'
 
   const activeLocale =
     localization &&
@@ -296,6 +299,11 @@ export function PublishButton({
                     {isSpecificLocalePublishEnabled && (
                       <PopupList.ButtonGroup>
                         <PopupList.Button
+                          disabled={
+                            (isDefaultPublishAll
+                              ? currentLocaleHasChanges
+                              : allLocalesHaveChanges) === false || uploadStatus === 'uploading'
+                          }
                           id="publish-locale"
                           onClick={
                             isDefaultPublishAll

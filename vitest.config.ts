@@ -48,6 +48,7 @@ export default defineConfig({
             'packages/**/*.spec.ts',
             'test/benchmark-blocks/**/*.unit.spec.ts',
             'test/clipboard/**/*.unit.spec.ts',
+            'test/form-state/**/*.unit.spec.ts',
           ],
           name: 'unit',
           environment: 'node',

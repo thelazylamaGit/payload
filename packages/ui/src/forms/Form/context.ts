@@ -20,6 +20,8 @@ const ProcessingContext = createContext(false)
  * if autosave is running), this will be true.
  */
 const BackgroundProcessingContext = createContext(false)
+export type PublicationChanges = { allLocales: boolean; currentLocale: boolean }
+const PublicationContext = createContext<PublicationChanges | undefined>(undefined)
 const ContentModifiedContext = createContext<boolean | null>(null)
 const ModifiedContext = createContext(false)
 const InitializingContext = createContext(false)
@@ -54,6 +56,11 @@ const useFormContentModified = (): boolean => {
 
   return hasUnsavedChanges ?? modified
 }
+const useFormUnpublished = (allLocales = false): boolean | undefined => {
+  const changes = use(PublicationContext)
+
+  return allLocales ? changes?.allLocales : changes?.currentLocale
+}
 const useFormModified = (): boolean => use(ModifiedContext)
 const useFormInitializing = (): boolean => use(InitializingContext)
 
@@ -83,6 +90,7 @@ export {
   InitializingContext,
   ModifiedContext,
   ProcessingContext,
+  PublicationContext,
   SubmittedContext,
   useAllFormFields,
   useDocumentForm,
@@ -94,5 +102,6 @@ export {
   useFormModified,
   useFormProcessing,
   useFormSubmitted,
+  useFormUnpublished,
   useWatchForm,
 }

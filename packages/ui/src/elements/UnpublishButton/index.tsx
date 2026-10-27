@@ -104,10 +104,15 @@ export function UnpublishButton({
           })
 
           if (res.status === 200) {
-            void resetForm({
-              ...(dataFromProps || {}),
-              _status: 'draft',
-            })
+            const json = await res.json()
+
+            await resetForm(
+              json.doc ||
+                json.result || {
+                  ...(dataFromProps || {}),
+                  _status: 'draft',
+                },
+            )
 
             toast.success(t('version:unpublishedSuccessfully'))
             if (!unpublishAll) {

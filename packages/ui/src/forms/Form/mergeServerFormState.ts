@@ -22,6 +22,7 @@ type Args = {
   acceptValues?: AcceptValues
   currentState?: FormState
   incomingState: FormState
+  submittedState?: FormState
 }
 
 /**
@@ -83,11 +84,51 @@ export const mergeServerFormState = ({
   acceptValues,
   currentState = {},
   incomingState,
+  submittedState,
 }: Args): FormState => {
   const newState = { ...currentState }
+  const changedPaths = submittedState
+    ? Object.keys(currentState).filter(
+        (path) =>
+          !dequal(currentState[path]?.value, submittedState[path]?.value) ||
+          !dequal(
+            currentState[path]?.rows?.map(({ id }) => id),
+            submittedState[path]?.rows?.map(({ id }) => id),
+          ),
+      )
+    : []
 
   for (const [path, incomingField] of Object.entries(incomingState || {})) {
     if (!(path in currentState) && !incomingField.addedByServer) {
+      continue
+    }
+
+    const hasChangedRow =
+      submittedState &&
+      path.split('.').some((segment, index, segments) => {
+        if (!/^\d+$/.test(segment)) {
+          return false
+        }
+        const arrayPath = segments.slice(0, index).join('.')
+        const rowIndex = Number(segment)
+
+        const currentID = currentState[arrayPath]?.rows?.[rowIndex]?.id
+
+        return (
+          currentID !== submittedState[arrayPath]?.rows?.[rowIndex]?.id ||
+          (currentID !== incomingState[arrayPath]?.rows?.[rowIndex]?.id &&
+            changedPaths.some(
+              (changedPath) => changedPath === arrayPath || changedPath.startsWith(`${arrayPath}.`),
+            ))
+        )
+      })
+    const hasChangedRows =
+      submittedState &&
+      Array.isArray(currentState[path]?.rows) &&
+      changedPaths.some((changedPath) => changedPath === path || changedPath.startsWith(`${path}.`))
+
+    // A server-added field at an old array index must not populate a different local row.
+    if (hasChangedRow) {
       continue
     }
 
@@ -105,6 +146,15 @@ export const mergeServerFormState = ({
         // Note: Must be explicitly `false`, allow `null` or `undefined` to mean true
         acceptValues.overrideLocalChanges === false &&
         !currentState[path]?.isModified)
+
+    if (
+      submittedState &&
+      (acceptValues === true ||
+        (typeof acceptValues === 'object' && acceptValues?.overrideLocalChanges === false))
+    ) {
+      shouldAcceptValue =
+        !hasChangedRows && dequal(currentState[path]?.value, submittedState[path]?.value)
+    }
 
     /**
      * For array row fields, verify the row IDs match at the given index before accepting
@@ -163,7 +213,7 @@ export const mergeServerFormState = ({
      * On autosave (acceptValues !== true), the client is source of truth - use ID-based matching.
      */
     if (Array.isArray(incomingField.rows) && path in currentState) {
-      if (acceptValues === true) {
+      if (acceptValues === true && !hasChangedRows) {
         // Explicit save: server is authoritative, use index-based merging
         newState[path].rows = incomingField.rows.map((serverRow, index) => ({
           ...(currentState[path]?.rows?.[index] || {}),
@@ -230,6 +280,23 @@ export const mergeServerFormState = ({
     // Strip away the `addedByServer` property from the client
     // This will prevent it from being passed back to the server
     delete newState[path].addedByServer
+  }
+
+  if (submittedState && acceptValues === true) {
+    for (const [path, field] of Object.entries(incomingState || {})) {
+      if (
+        Array.isArray(field.rows) &&
+        !changedPaths.some(
+          (changedPath) => changedPath === path || changedPath.startsWith(`${path}.`),
+        )
+      ) {
+        for (const childPath of Object.keys(newState)) {
+          if (childPath.startsWith(`${path}.`) && !(childPath in incomingState)) {
+            delete newState[childPath]
+          }
+        }
+      }
+    }
   }
 
   // Return the original object reference if the state is unchanged

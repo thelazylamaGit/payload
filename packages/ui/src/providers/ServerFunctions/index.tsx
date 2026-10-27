@@ -1,6 +1,5 @@
 import type {
   AdminViewServerPropsOnly,
-  BuildFormStateArgs,
   BuildTableStateArgs,
   Data,
   DocumentPreferences,
@@ -21,7 +20,10 @@ import type {
   RenderFieldServerFnArgs,
   RenderFieldServerFnReturnType,
 } from '../../forms/fieldSchemasToFormState/serverFunctions/renderFieldServerFn.js'
-import type { buildFormStateHandler } from '../../utilities/buildFormState.js'
+import type {
+  buildFormStateHandler,
+  DocumentFormStateArgs,
+} from '../../utilities/buildFormState.js'
 import type { buildTableStateHandler } from '../../utilities/buildTableState.js'
 import type { CopyDataFromLocaleArgs } from '../../utilities/copyDataFromLocale.js'
 import type { getFolderResultsComponentAndDataHandler } from '../../utilities/getFolderResultsComponentAndData.js'
@@ -35,7 +37,7 @@ import type {
 type GetFormStateClient = (
   args: {
     signal?: AbortSignal
-  } & Omit<BuildFormStateArgs, 'clientConfig' | 'req'>,
+  } & Omit<DocumentFormStateArgs, 'clientConfig' | 'req'>,
 ) => ReturnType<typeof buildFormStateHandler>
 
 type SchedulePublishClient = (

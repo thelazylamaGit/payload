@@ -68,6 +68,9 @@ try {
     '--project',
     'unit',
     'packages/ui/src/elements/ClipboardAction',
+    'packages/ui/src/forms/Form',
+    'packages/ui/src/elements/LeaveWithoutSaving',
+    'test/form-state/contentChanges.unit.spec.ts',
     'test/clipboard',
     ...(shouldIncludeLexical
       ? [
