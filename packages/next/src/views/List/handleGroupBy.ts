@@ -19,6 +19,7 @@ import { flattenAllFields } from 'payload'
 import { createSerializableValue } from './createSerializableValue.js'
 import { extractRelationshipDisplayValue } from './extractRelationshipDisplayValue.js'
 import { extractValueOrRelationshipID } from './extractValueOrRelationshipID.js'
+import { getOptionLabel } from './getOptionLabel.js'
 
 export const handleGroupBy = async ({
   clientCollectionConfig,
@@ -170,6 +171,12 @@ export const handleGroupBy = async ({
         if (valueOrRelationshipID === false) {
           heading = req.i18n.t('general:false')
         }
+      } else if (groupByField?.type === 'select' || groupByField?.type === 'radio') {
+        heading = getOptionLabel({
+          i18n: req.i18n,
+          options: groupByField.options,
+          value: valueOrRelationshipID,
+        })
       } else {
         heading = String(valueOrRelationshipID)
       }
