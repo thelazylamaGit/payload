@@ -255,6 +255,8 @@ export {
   useForm,
   useFormBackgroundProcessing,
   useFormFields,
+  useFormHasUnpublishedChanges,
+  useFormHasUnsavedChanges,
   useFormInitializing,
   useFormModified,
   useFormProcessing,

@@ -10,13 +10,10 @@ import type {
 import { canAccessAdmin, formatErrors, UnauthorizedError } from 'payload'
 import { getSelectMode, reduceFieldsToValues } from 'payload/shared'
 
-import type { DocumentPublicationState } from '../forms/Form/formContent.js'
-
 import { fieldSchemasToFormState } from '../forms/fieldSchemasToFormState/index.js'
 import { renderField } from '../forms/fieldSchemasToFormState/renderField.js'
 import { getClientConfig } from './getClientConfig.js'
 import { getClientSchemaMap } from './getClientSchemaMap.js'
-import { getDocumentPublicationState } from './getDocumentPublicationState.js'
 import { getSchemaMap } from './getSchemaMap.js'
 import { handleFormStateLocking } from './handleFormStateLocking.js'
 import { handleLivePreview } from './handleLivePreview.js'
@@ -34,8 +31,6 @@ export type StaleDataState = {
   isStale: boolean
 }
 
-export type DocumentFormStateArgs = { getPublicationState?: boolean } & BuildFormStateArgs
-
 type BuildFormStateSuccessResult = {
   clientConfig?: ClientConfig
   errors?: never
@@ -43,7 +38,6 @@ type BuildFormStateSuccessResult = {
   livePreviewURL?: string
   lockedState?: LockedState
   previewURL?: string
-  publicationState?: DocumentPublicationState
   staleDataState?: StaleDataState
   state: FormState
 }
@@ -52,7 +46,6 @@ type BuildFormStateErrorResult = {
   livePreviewURL?: never
   lockedState?: never
   previewURL?: never
-  publicationState?: never
   staleDataState?: never
   state?: never
 } & (
@@ -65,17 +58,13 @@ type BuildFormStateErrorResult = {
 export type BuildFormStateResult = BuildFormStateErrorResult | BuildFormStateSuccessResult
 
 export const buildFormStateHandler: ServerFunction<
-  DocumentFormStateArgs,
+  BuildFormStateArgs,
   Promise<BuildFormStateResult>
 > = async (args) => {
   const { req } = args
 
   try {
     await canAccessAdmin({ req })
-    if (args.getPublicationState) {
-      return { publicationState: await getDocumentPublicationState(args), state: {} }
-    }
-
     const res = await buildFormState(args)
 
     return res

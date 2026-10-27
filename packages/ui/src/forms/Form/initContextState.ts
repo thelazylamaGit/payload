@@ -38,8 +38,6 @@ export const initContextState: Context = {
   getDataByPath: () => undefined,
   getField: (): FormField => undefined,
   getFields: (): FormState => ({}),
-  getHasUnpublishedChanges: () => undefined,
-  getHasUnsavedChanges: () => false,
   getSiblingData,
   initializing: undefined,
   isValid: true,

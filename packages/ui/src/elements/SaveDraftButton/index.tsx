@@ -5,7 +5,7 @@ import type { SaveDraftButtonClientProps } from 'payload'
 import { formatAdminURL } from 'payload/shared'
 import React, { useCallback, useRef } from 'react'
 
-import { useForm, useFormContentModified } from '../../forms/Form/context.js'
+import { useForm, useFormHasUnsavedChanges } from '../../forms/Form/context.js'
 import { FormSubmit } from '../../forms/Submit/index.js'
 import { useHotkey } from '../../hooks/useHotkey.js'
 import { useConfig } from '../../providers/Config/index.js'
@@ -27,7 +27,7 @@ export function SaveDraftButton(props: SaveDraftButtonClientProps) {
   const { id, collectionSlug, globalSlug, setUnpublishedVersionCount, uploadStatus } =
     useDocumentInfo()
 
-  const modified = useFormContentModified()
+  const modified = useFormHasUnsavedChanges()
   const { code: locale } = useLocale()
   const ref = useRef<HTMLButtonElement>(null)
   const editDepth = useEditDepth()

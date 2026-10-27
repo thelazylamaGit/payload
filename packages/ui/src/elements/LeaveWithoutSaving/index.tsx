@@ -1,9 +1,9 @@
 'use client'
-import React, { use, useCallback } from 'react'
+import React, { useCallback } from 'react'
 
 import type { OnCancel } from '../ConfirmationModal/index.js'
 
-import { ContentModifiedContext, useForm, useFormModified } from '../../forms/Form/context.js'
+import { useForm, useFormHasUnsavedChanges } from '../../forms/Form/index.js'
 import { useAuth } from '../../providers/Auth/index.js'
 import { useTranslation } from '../../providers/Translation/index.js'
 import { ConfirmationModal } from '../ConfirmationModal/index.js'
@@ -26,18 +26,12 @@ export const LeaveWithoutSaving: React.FC<LeaveWithoutSavingProps> = ({
 }) => {
   const modalSlug = leaveWithoutSavingModalSlug
   const { closeModal, openModal } = useModal()
-  const modified = useFormModified()
-  const contentModified = use(ContentModifiedContext)
-  const { getHasUnsavedChanges, isValid } = useForm()
+  const modified = useFormHasUnsavedChanges()
+  const { isValid } = useForm()
   const { user } = useAuth()
   const [hasAccepted, setHasAccepted] = React.useState(false)
 
-  const prevent = useCallback(
-    () =>
-      !disablePreventLeave &&
-      Boolean(user && (contentModified === null ? modified || !isValid : getHasUnsavedChanges())),
-    [contentModified, disablePreventLeave, getHasUnsavedChanges, isValid, modified, user],
-  )
+  const prevent = !disablePreventLeave && Boolean((modified || !isValid) && user)
 
   const handlePrevent = useCallback(() => {
     const activeHref = (document.activeElement as HTMLAnchorElement)?.href || null

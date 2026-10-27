@@ -12,7 +12,7 @@ import { toast } from 'sonner'
 
 import type { DocumentDrawerContextType } from '../DocumentDrawer/Provider.js'
 
-import { useForm, useFormModified } from '../../forms/Form/context.js'
+import { useForm, useFormHasUnsavedChanges } from '../../forms/Form/context.js'
 import { useConfig } from '../../providers/Config/index.js'
 import { useLocale } from '../../providers/Locale/index.js'
 import { useRouteTransition } from '../../providers/RouteTransition/index.js'
@@ -41,7 +41,7 @@ export const DuplicateDocument: React.FC<Props> = ({
   singularLabel,
 }) => {
   const router = useRouter()
-  const modified = useFormModified()
+  const modified = useFormHasUnsavedChanges()
   const { openModal } = useModal()
   const { code: localeCode } = useLocale()
   const { setModified } = useForm()

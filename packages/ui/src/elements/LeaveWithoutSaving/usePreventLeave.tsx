@@ -70,7 +70,7 @@ export const usePreventLeave = ({
   onAccept?: () => void
   // to use a custom confirmation dialog, provide a function that returns a boolean
   onPrevent?: () => void
-  prevent: (() => boolean) | boolean
+  prevent: boolean
 }) => {
   // check when page is about to be reloaded
   useBeforeUnload(prevent, message)
@@ -126,11 +126,7 @@ export const usePreventLeave = ({
 
           const isPageLeaving = !(newUrl === currentUrl || isAnchor || isDownloadLink || isNewTab)
 
-          if (
-            isPageLeaving &&
-            (typeof prevent === 'function' ? prevent() : prevent) &&
-            (!onPrevent ? !window.confirm(message) : true)
-          ) {
+          if (isPageLeaving && prevent && (!onPrevent ? !window.confirm(message) : true)) {
             // Keep a reference of the href
             cancelledURL.current = newUrl
 

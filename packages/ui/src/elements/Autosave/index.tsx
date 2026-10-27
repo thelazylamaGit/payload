@@ -18,7 +18,6 @@ import {
   useAllFormFields,
   useForm,
   useFormModified,
-  useFormProcessing,
   useFormSubmitted,
 } from '../../forms/Form/context.js'
 import { useDebounce } from '../../hooks/useDebounce.js'
@@ -59,11 +58,10 @@ export const Autosave: React.FC<Props> = ({ id, collection, global: globalDoc })
     setUnpublishedVersionCount,
   } = useDocumentInfo()
 
-  const { getHasUnsavedChanges, isValid, setBackgroundProcessing, submit } = useForm()
+  const { isValid, setBackgroundProcessing, submit } = useForm()
 
   const [formState] = useAllFormFields()
   const modified = useFormModified()
-  const processing = useFormProcessing()
   const submitted = useFormSubmitted()
 
   const { code: locale } = useLocale()
@@ -104,9 +102,7 @@ export const Autosave: React.FC<Props> = ({ id, collection, global: globalDoc })
 
     queueTask(
       async () => {
-        // Read current content when the queued task runs: a publish may have saved
-        // these values since the autosave debounce was scheduled.
-        if (modified && getHasUnsavedChanges()) {
+        if (modified) {
           startTimestamp = new Date().getTime()
 
           setSaving(true)
@@ -206,11 +202,6 @@ export const Autosave: React.FC<Props> = ({ id, collection, global: globalDoc })
       return
     }
 
-    // Preserve the pending comparison until a manual save has finished.
-    if (processing) {
-      return
-    }
-
     /**
      * Ensure autosave only runs if the form data changes, not every time the entire form state changes
      * Remove `updatedAt` from comparison as it changes on every autosave interval.
@@ -225,7 +216,7 @@ export const Autosave: React.FC<Props> = ({ id, collection, global: globalDoc })
     previousDebouncedData.current = formData
 
     handleAutosave()
-  }, [debouncedFormState, processing])
+  }, [debouncedFormState])
 
   /**
    * If component unmounts, clear the autosave timeout

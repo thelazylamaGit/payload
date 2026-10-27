@@ -13,7 +13,11 @@ import {
 import * as qs from 'qs-esm'
 import React, { useCallback, useEffect, useState } from 'react'
 
-import { useForm, useFormContentModified, useFormUnpublished } from '../../forms/Form/context.js'
+import {
+  useForm,
+  useFormHasUnpublishedChanges,
+  useFormHasUnsavedChanges,
+} from '../../forms/Form/context.js'
 import { FormSubmit } from '../../forms/Submit/index.js'
 import { useHotkey } from '../../hooks/useHotkey.js'
 import { useConfig } from '../../providers/Config/index.js'
@@ -44,9 +48,8 @@ export function PublishButton({
 
   const { config, getEntityConfig } = useConfig()
   const { submit } = useForm()
-  const modified = useFormContentModified()
-  const currentLocaleHasChanges = useFormUnpublished()
-  const allLocalesHaveChanges = useFormUnpublished(true)
+  const modified = useFormHasUnsavedChanges()
+  const hasUnpublishedChanges = useFormHasUnpublishedChanges()
   const editDepth = useEditDepth()
   const { code: localeCode } = useLocale()
   const { isModalOpen, toggleModal } = useModal()
@@ -154,6 +157,17 @@ export function PublishButton({
 
   const localizeStatusEnabled = hasLocalizeStatusEnabled(entityConfig)
 
+  /**
+   * Compares against the published content when it is known. Publishing all locales with a localized status
+   * can also publish other locales' drafts, which the form can't see, so that falls back to version history.
+   */
+  const getCanPublish = (isPublishingAllLocales: boolean): boolean =>
+    hasPublishPermission &&
+    uploadStatus !== 'uploading' &&
+    (hasUnpublishedChanges === undefined || (isPublishingAllLocales && localizeStatusEnabled)
+      ? modified || hasNewerVersions || !hasPublishedDoc
+      : hasUnpublishedChanges)
+
   const publish = useCallback(async () => {
     if (uploadStatus === 'uploading') {
       return
@@ -255,11 +269,7 @@ export function PublishButton({
     !isSpecificLocalePublishEnabled ||
     (localization && localization?.defaultLocalePublishOption !== 'active')
 
-  const canPublish =
-    hasPublishPermission &&
-    ((isDefaultPublishAll ? allLocalesHaveChanges : currentLocaleHasChanges) ??
-      (modified || hasNewerVersions || !hasPublishedDoc)) &&
-    uploadStatus !== 'uploading'
+  const canPublish = getCanPublish(isDefaultPublishAll)
 
   const activeLocale =
     localization &&
@@ -299,11 +309,7 @@ export function PublishButton({
                     {isSpecificLocalePublishEnabled && (
                       <PopupList.ButtonGroup>
                         <PopupList.Button
-                          disabled={
-                            (isDefaultPublishAll
-                              ? currentLocaleHasChanges
-                              : allLocalesHaveChanges) === false || uploadStatus === 'uploading'
-                          }
+                          disabled={!getCanPublish(!isDefaultPublishAll)}
                           id="publish-locale"
                           onClick={
                             isDefaultPublishAll

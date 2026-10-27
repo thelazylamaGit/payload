@@ -2,14 +2,14 @@
 import { dequal } from 'dequal/lite' // lite: no need for Map and Set support
 import { useRouter } from 'next/navigation.js'
 import { serialize } from 'object-to-formdata'
-import { type FormState, type PayloadRequest } from 'payload'
+import { type Data, type FormState, type PayloadRequest } from 'payload'
 import {
   deepCopyObjectSimpleWithoutReactComponents,
+  formatAdminURL,
   getDataByPath as getDataByPathFunc,
   getSiblingData as getSiblingDataFunc,
   hasDraftsEnabled,
   hasDraftValidationEnabled,
-  hasLocalizeStatusEnabled,
   reduceFieldsToValues,
   uploadRequiresServerValidation,
   wait,
@@ -17,8 +17,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
-import type { PublicationChanges } from './context.js'
-import type { DocumentPublicationState } from './formContent.js'
+import type { ContentChanges } from './context.js'
 import type {
   CreateFormData,
   Context as FormContextType,
@@ -46,7 +45,7 @@ import { abortAndIgnore, handleAbortRef } from '../../utilities/abortAndIgnore.j
 import { requests } from '../../utilities/api.js'
 import {
   BackgroundProcessingContext,
-  ContentModifiedContext,
+  ContentChangesContext,
   DocumentFormContext,
   FormContext,
   FormFieldsContext,
@@ -54,24 +53,31 @@ import {
   InitializingContext,
   ModifiedContext,
   ProcessingContext,
-  PublicationContext,
   SubmittedContext,
   useDocumentForm,
 } from './context.js'
 import { errorMessages } from './errorMessages.js'
 import { fieldReducer } from './fieldReducer.js'
 import {
-  getFormContentSnapshot,
-  getIgnoredDocumentFields,
-  hasFormContentChanges,
+  getFormContent,
+  getIgnoredContentPaths,
+  getIsDraftSameAsPublished,
+  isSameFormContent,
 } from './formContent.js'
 import { initContextState } from './initContextState.js'
 
 const baseClass = 'form'
 
 export const Form: React.FC<FormProps> = (props) => {
-  const { id, collectionSlug, docConfig, docPermissions, getDocPreferences, globalSlug } =
-    useDocumentInfo()
+  const {
+    id,
+    collectionSlug,
+    docConfig,
+    docPermissions,
+    getDocPreferences,
+    globalSlug,
+    hasPublishedDoc,
+  } = useDocumentInfo()
 
   const validateDrafts = hasDraftValidationEnabled(docConfig)
 
@@ -159,23 +165,10 @@ export const Form: React.FC<FormProps> = (props) => {
     _setBackgroundProcessing(backgroundProcessing)
   }, [])
 
-  const ignoredFields = useMemo(() => getIgnoredDocumentFields(docConfig), [docConfig])
-  const [publicationChanges, setPublicationChanges] = useState<PublicationChanges>({
-    allLocales: false,
-    currentLocale: false,
+  const [contentChanges, setContentChanges] = useState<ContentChanges>({
+    hasUnpublishedChanges: undefined,
+    hasUnsavedChanges: false,
   })
-  const publicationRef = useRef<{
-    otherLocalesHaveChanges: boolean
-    published: null | Record<string, unknown>
-  }>(undefined)
-  const publicationPromiseRef = useRef<Promise<void>>(undefined)
-  const publicationRequestRef = useRef(0)
-  const submissionRef = useRef(false)
-
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-
-  const savedContentRef = useRef<ReturnType<typeof getFormContentSnapshot>>(undefined)
-  const baselineGenerationRef = useRef(0)
 
   const [modified, _setModified] = useState(false)
 
@@ -184,22 +177,60 @@ export const Form: React.FC<FormProps> = (props) => {
    * See the `modifiedWhileProcessingRef` ref for more details.
    */
   const setModified = useCallback((modified: boolean) => {
-    if (modified && backgroundProcessingRef.current) {
+    if (backgroundProcessingRef.current) {
       modifiedWhileProcessingRef.current = true
     }
 
     if (modified) {
-      // Enable actions immediately; the debounced comparison settles edits that were undone.
-      setHasUnsavedChanges(true)
-      setPublicationChanges((state) =>
-        state && (!state.allLocales || !state.currentLocale)
-          ? { allLocales: true, currentLocale: true }
-          : state,
+      // Assume the edit is a change until the debounced comparison settles, so that
+      // saving straight after an edit isn't blocked
+      setContentChanges((prev) =>
+        prev.hasUnsavedChanges && prev.hasUnpublishedChanges !== false
+          ? prev
+          : {
+              hasUnpublishedChanges: prev.hasUnpublishedChanges === undefined ? undefined : true,
+              hasUnsavedChanges: true,
+            },
       )
     }
 
     _setModified(modified)
   }, [])
+
+  /**
+   * Content-aware change tracking for document forms.
+   *
+   * `savedContentRef` holds the content of the form the last time it was in an unmodified state.
+   * Capturing it from the client form state (rather than from the server response) means values that
+   * are set without user interaction, e.g. server normalization or fields registered by components
+   * like the auth password fields, are never mistaken for changes.
+   *
+   * `publishedContentRef` is captured alongside it whenever the saved content has a `published` status.
+   * It is unknown when a document is loaded with a newer draft, in which case publishing falls back to
+   * the version-based behavior.
+   */
+  const savedContentRef = useRef<Data>(undefined)
+  const publishedContentRef = useRef<Data>(undefined)
+  /**
+   * Prevents an in-flight or failed submission's values from being captured as saved content,
+   * as `modified` is reset as soon as a response arrives.
+   */
+  const isSavedContentLockedRef = useRef(false)
+  /** Incremented whenever the saved content is replaced by a save or reset. */
+  const savedContentGenerationRef = useRef(0)
+  const [savedContentCaptureCount, setSavedContentCaptureCount] = useState(0)
+  const ignoredContentPaths = useMemo(() => getIgnoredContentPaths(docConfig), [docConfig])
+
+  const unlockSavedContent = useCallback(() => {
+    savedContentGenerationRef.current += 1
+    isSavedContentLockedRef.current = false
+    setSavedContentCaptureCount((count) => count + 1)
+  }, [])
+
+  const resetSavedContent = useCallback(() => {
+    publishedContentRef.current = undefined
+    unlockSavedContent()
+  }, [unlockSavedContent])
 
   const formRef = useRef<HTMLFormElement>(null)
   const contextRef = useRef({} as FormContextType)
@@ -213,127 +244,6 @@ export const Form: React.FC<FormProps> = (props) => {
   contextRef.current.fields = formState
 
   const prevFormState = useRef(formState)
-
-  const getHasUnsavedChanges = useCallback(() => {
-    if (!isDocumentForm || !savedContentRef.current) {
-      return modified
-    }
-
-    return hasFormContentChanges(contextRef.current.fields, savedContentRef.current, ignoredFields)
-  }, [ignoredFields, isDocumentForm, modified])
-
-  const updateSavedContent = useCallback(
-    (state: FormState) => {
-      if (isDocumentForm) {
-        savedContentRef.current = getFormContentSnapshot(state, ignoredFields)
-        setHasUnsavedChanges(false)
-      }
-    },
-    [ignoredFields, isDocumentForm],
-  )
-
-  const getHasUnpublishedChanges = useCallback(
-    (allLocales = false): boolean | undefined => {
-      const baseline = publicationRef.current
-
-      if (!baseline) {
-        return undefined
-      }
-
-      return (
-        baseline.published === null ||
-        (allLocales && baseline.otherLocalesHaveChanges) ||
-        hasFormContentChanges(contextRef.current.fields, baseline.published, ignoredFields)
-      )
-    },
-    [ignoredFields],
-  )
-
-  const updatePublicationChanges = useCallback(() => {
-    const currentLocale = getHasUnpublishedChanges()
-    const allLocales = currentLocale || Boolean(publicationRef.current?.otherLocalesHaveChanges)
-
-    if (currentLocale !== undefined) {
-      setPublicationChanges((previous) =>
-        previous?.currentLocale === currentLocale && previous?.allLocales === allLocales
-          ? previous
-          : { allLocales, currentLocale },
-      )
-    }
-  }, [getHasUnpublishedChanges])
-
-  const loadPublicationState = useCallback(
-    (refresh = false): Promise<void> => {
-      if (!isDocumentForm || !hasDraftsEnabled(docConfig) || (collectionSlug && id == null)) {
-        return Promise.resolve()
-      }
-      if (!refresh && publicationPromiseRef.current !== undefined) {
-        return publicationPromiseRef.current
-      }
-
-      const generation = baselineGenerationRef.current
-      const request = ++publicationRequestRef.current
-
-      const promise = getFormState({
-        id,
-        collectionSlug,
-        docPermissions,
-        docPreferences: { fields: {} },
-        getPublicationState: true,
-        globalSlug,
-        locale,
-        operation,
-        renderAllFields: false,
-        schemaPath: collectionSlug || globalSlug,
-        skipValidation: true,
-      })
-        .then((result) => {
-          if (
-            generation !== baselineGenerationRef.current ||
-            request !== publicationRequestRef.current
-          ) {
-            return
-          }
-          const baseline: DocumentPublicationState = result?.publicationState
-
-          if (!baseline) {
-            throw new Error(t('error:unknown'))
-          }
-          const acceptedFile = publicationRef.current?.published?.file
-          publicationRef.current = {
-            ...baseline,
-            published:
-              baseline.published && acceptedFile instanceof File
-                ? { ...baseline.published, file: acceptedFile }
-                : baseline.published,
-          }
-          updatePublicationChanges()
-        })
-        .catch((error: unknown) => {
-          if (request === publicationRequestRef.current) {
-            publicationPromiseRef.current = undefined
-            setPublicationChanges(undefined)
-          }
-          throw error
-        })
-
-      publicationPromiseRef.current = promise
-      return promise
-    },
-    [
-      collectionSlug,
-      docConfig,
-      docPermissions,
-      getFormState,
-      globalSlug,
-      id,
-      isDocumentForm,
-      locale,
-      operation,
-      t,
-      updatePublicationChanges,
-    ],
-  )
 
   const validateForm = useCallback(async () => {
     const validatedFieldState = {}
@@ -406,11 +316,11 @@ export const Form: React.FC<FormProps> = (props) => {
     return isValid
   }, [collectionSlug, config, dispatchFields, id, operation, t, user, documentForm])
 
-  const submitForm = useCallback<Submit>(
+  const submit = useCallback<Submit>(
     async (options, e) => {
       const {
         acceptValues = true,
-        action: actionFromArgs = action,
+        action: actionArg = action,
         context,
         disableFormWhileProcessing = true,
         disableSuccessStatus: disableSuccessStatusFromArgs,
@@ -419,79 +329,12 @@ export const Form: React.FC<FormProps> = (props) => {
         skipValidation,
       } = options || ({} as SubmitOptions)
 
-      let actionArg = actionFromArgs
-      const baselineGeneration = baselineGenerationRef.current
       const disableToast = disableSuccessStatusFromArgs ?? disableSuccessStatus
 
       if (disabled) {
         if (e) {
           e.preventDefault()
         }
-        return
-      }
-
-      if (isDocumentForm && waitForAutocomplete) {
-        e?.preventDefault()
-        await wait(100)
-        if (contextRef.current.disabled) {
-          return
-        }
-      }
-
-      // Manual document saves share this guard, including Enter and keyboard shortcuts.
-      // Publishing an existing draft is a legitimate status transition even without edits.
-      const hasCustomOverrides =
-        typeof overridesFromArgs === 'function' ||
-        Object.keys(overridesFromArgs).some((key) => key !== '_status')
-      const status = overridesFromArgs['_status'] ?? contextRef.current.fields?._status?.value
-      const isPublishing = hasDraftsEnabled(docConfig) && status === 'published'
-      if (
-        isDocumentForm &&
-        hasDraftsEnabled(docConfig) &&
-        status === 'draft' &&
-        !options?.action &&
-        !hasCustomOverrides &&
-        typeof actionArg === 'string'
-      ) {
-        const [path, query] = actionArg.split('?')
-        const params = new URLSearchParams(query)
-        params.set('draft', 'true')
-        actionArg = `${path}?${params.toString()}`
-      }
-      const publicationParams =
-        typeof actionArg === 'string'
-          ? new URL(actionArg, 'http://localhost').searchParams
-          : undefined
-      const allLocales =
-        !publicationParams?.has('publishSpecificLocale') &&
-        (!hasLocalizeStatusEnabled(docConfig) ||
-          publicationParams?.get('publishAllLocales') === 'true')
-
-      if (isDocumentForm && operation === 'update' && isPublishing && !hasCustomOverrides) {
-        try {
-          await loadPublicationState()
-          if (baselineGeneration !== baselineGenerationRef.current) {
-            return
-          }
-          if (!publicationRef.current) {
-            throw new Error(t('error:unknown'))
-          }
-        } catch (error) {
-          toast.error(error.message)
-          e?.preventDefault()
-          return
-        }
-      }
-
-      if (
-        isDocumentForm &&
-        operation === 'update' &&
-        !backgroundProcessingRef.current &&
-        !hasCustomOverrides &&
-        (isPublishing ? getHasUnpublishedChanges(allLocales) === false : !getHasUnsavedChanges())
-      ) {
-        e?.preventDefault()
-        e?.stopPropagation()
         return
       }
 
@@ -533,14 +376,11 @@ export const Form: React.FC<FormProps> = (props) => {
         setDisabled(true)
       }
 
-      if (waitForAutocomplete && !isDocumentForm) {
+      if (waitForAutocomplete) {
         await wait(100)
       }
 
       const data = reduceFieldsToValues(contextRef.current.fields, true)
-      const submittedContent = isDocumentForm
-        ? getFormContentSnapshot(contextRef.current.fields, ignoredFields)
-        : undefined
 
       const serializableFormState = deepCopyObjectSimpleWithoutReactComponents(
         contextRef.current.fields,
@@ -570,7 +410,6 @@ export const Form: React.FC<FormProps> = (props) => {
         setIsValid(isValid)
 
         if (!isValid) {
-          errorToast(t('error:correctInvalidFields'))
           setProcessing(false)
           setSubmitted(true)
           setDisabled(false)
@@ -618,6 +457,8 @@ export const Form: React.FC<FormProps> = (props) => {
         return
       }
 
+      isSavedContentLockedRef.current = true
+
       try {
         const formData = await contextRef.current.createFormData(overrides, {
           data,
@@ -637,10 +478,17 @@ export const Form: React.FC<FormProps> = (props) => {
           res = await action(formData)
         }
 
+        if (!modifiedWhileProcessingRef.current) {
+          setModified(false)
+        } else {
+          modifiedWhileProcessingRef.current = false
+        }
+
+        setDisabled(false)
+
         if (typeof handleResponse === 'function') {
-          setDisabled(false)
           if (res.ok) {
-            setModified(false)
+            unlockSavedContent()
           }
           handleResponse(res, successToast, errorToast)
           return
@@ -656,96 +504,26 @@ export const Form: React.FC<FormProps> = (props) => {
           json = await res.json()
         }
 
-        if (isDocumentForm && baselineGeneration !== baselineGenerationRef.current) {
-          setDisabled(false)
-          setProcessing(false)
-          return
-        }
-
         if (res.status < 400) {
-          if (!isDocumentForm && !modifiedWhileProcessingRef.current) {
-            setModified(false)
-          }
-          modifiedWhileProcessingRef.current = false
           if (typeof onSuccess === 'function') {
             const newFormState = await onSuccess(json, {
               context,
               formState: serializableFormState,
             })
 
-            if (
-              newFormState &&
-              (!isDocumentForm || baselineGeneration === baselineGenerationRef.current)
-            ) {
-              const hasEditsSinceSubmission =
-                isDocumentForm &&
-                !dequal(
-                  getFormContentSnapshot(contextRef.current.fields, ignoredFields),
-                  submittedContent,
-                )
-
-              // Use the server-normalised submitted state, never the current editor values.
-              updateSavedContent({
-                ...newFormState,
-                // Upload responses omit the transient file field. Remember the accepted File
-                // by reference so it does not count as a new upload after a successful save.
-                ...(submittedContent?.file instanceof File &&
-                !(newFormState.file?.value instanceof File)
-                  ? { file: { value: submittedContent.file } }
-                  : {}),
-              })
-              if (hasEditsSinceSubmission) {
-                setHasUnsavedChanges(true)
-              }
-
-              if (isDocumentForm) {
-                setModified(hasEditsSinceSubmission)
-                modifiedWhileProcessingRef.current = false
-                if ('auth' in docConfig && docConfig.auth) {
-                  for (const path of ['password', 'confirm-password']) {
-                    if (
-                      serializableFormState[path] &&
-                      !newFormState[path] &&
-                      dequal(
-                        contextRef.current.fields[path]?.value,
-                        serializableFormState[path].value,
-                      )
-                    ) {
-                      dispatchFields({ type: 'REMOVE', path })
-                    }
-                  }
-                }
-              }
-
+            if (newFormState) {
               dispatchFields({
                 type: 'MERGE_SERVER_STATE',
                 acceptValues,
                 prevStateRef: prevFormState,
                 serverState: newFormState,
-                submittedState: isDocumentForm ? serializableFormState : undefined,
               })
             }
           }
 
-          if (isDocumentForm && baselineGeneration !== baselineGenerationRef.current) {
-            setDisabled(false)
-            setProcessing(false)
-            return
-          }
-          if (isDocumentForm && isPublishing) {
-            if (publicationRef.current) {
-              publicationRef.current.published = savedContentRef.current
-              if (allLocales) {
-                publicationRef.current.otherLocalesHaveChanges = false
-              }
-              updatePublicationChanges()
-            }
-            // Publication can update shared fields and other locales through server normalisation.
-            void loadPublicationState(true).catch(() => undefined)
-          }
+          unlockSavedContent()
           setSubmitted(false)
           setProcessing(false)
-          setDisabled(false)
 
           if (redirect) {
             startRouteTransition(() => router.push(redirect))
@@ -753,7 +531,6 @@ export const Form: React.FC<FormProps> = (props) => {
             successToast(json.message || t('general:submissionSuccessful'))
           }
         } else {
-          setDisabled(false)
           setProcessing(false)
           setSubmitted(true)
 
@@ -833,15 +610,6 @@ export const Form: React.FC<FormProps> = (props) => {
     },
     [
       beforeSubmit,
-      docConfig,
-      getHasUnsavedChanges,
-      getHasUnpublishedChanges,
-      ignoredFields,
-      loadPublicationState,
-      updatePublicationChanges,
-      isDocumentForm,
-      operation,
-      updateSavedContent,
       startRouteTransition,
       action,
       disableSuccessStatus,
@@ -860,30 +628,8 @@ export const Form: React.FC<FormProps> = (props) => {
       waitForAutocomplete,
       setModified,
       setSubmitted,
+      unlockSavedContent,
     ],
-  )
-
-  const submit = useCallback<Submit>(
-    async (options, event) => {
-      if (!isDocumentForm) {
-        return submitForm(options, event)
-      }
-      if (
-        submissionRef.current ||
-        (backgroundProcessingRef.current && options?.disableFormWhileProcessing !== false)
-      ) {
-        event?.preventDefault()
-        return
-      }
-      event?.preventDefault()
-      submissionRef.current = true
-      try {
-        return await submitForm(options, event)
-      } finally {
-        submissionRef.current = false
-      }
-    },
-    [isDocumentForm, submitForm],
   )
 
   const getFields = useCallback(() => contextRef.current.fields, [])
@@ -991,12 +737,7 @@ export const Form: React.FC<FormProps> = (props) => {
 
       contextRef.current = { ...initContextState } as FormContextType
       setModified(false)
-      baselineGenerationRef.current += 1
-      updateSavedContent(newState)
-      publicationRef.current = undefined
-      publicationPromiseRef.current = undefined
-      setPublicationChanges({ allLocales: false, currentLocale: false })
-      void loadPublicationState(true).catch(() => undefined)
+      resetSavedContent()
       dispatchFields({ type: 'REPLACE_STATE', state: newState })
 
       abortResetFormRef.current = null
@@ -1010,9 +751,8 @@ export const Form: React.FC<FormProps> = (props) => {
       getFormState,
       docPermissions,
       getDocPreferences,
-      updateSavedContent,
-      loadPublicationState,
       locale,
+      resetSavedContent,
       setModified,
     ],
   )
@@ -1102,8 +842,6 @@ export const Form: React.FC<FormProps> = (props) => {
   }, [initializingFromProps])
 
   contextRef.current.submit = submit
-  contextRef.current.getHasUnpublishedChanges = getHasUnpublishedChanges
-  contextRef.current.getHasUnsavedChanges = getHasUnsavedChanges
   contextRef.current.getFields = getFields
   contextRef.current.getField = getField
   contextRef.current.getData = getData
@@ -1149,12 +887,8 @@ export const Form: React.FC<FormProps> = (props) => {
 
   useEffect(() => {
     if (initialState) {
-      baselineGenerationRef.current += 1
-      updateSavedContent(initialState)
-      publicationRef.current = undefined
-      publicationPromiseRef.current = undefined
-      setPublicationChanges({ allLocales: false, currentLocale: false })
       contextRef.current = { ...initContextState } as FormContextType
+      resetSavedContent()
       dispatchFields({
         type: 'REPLACE_STATE',
         optimize: false,
@@ -1162,24 +896,76 @@ export const Form: React.FC<FormProps> = (props) => {
         state: initialState,
       })
     }
-  }, [initialState, dispatchFields, updateSavedContent])
+  }, [initialState, dispatchFields, resetSavedContent])
 
-  const initialisePublicationState = useEffectEvent(() => {
-    void loadPublicationState().catch(() => undefined)
+  const loadPublishedContent = useEffectEvent((signal: AbortSignal) => {
+    const generation = savedContentGenerationRef.current
+
+    void getIsDraftSameAsPublished({
+      ignoredPaths: ignoredContentPaths,
+      isLocalized: Boolean(config.localization),
+      signal,
+      url: formatAdminURL({
+        apiRoute: config.routes.api,
+        path: collectionSlug ? `/${collectionSlug}/${id}` : `/globals/${globalSlug}`,
+      }),
+    })
+      .then((isSameAsPublished) => {
+        // Only applies to the saved content it was loaded for
+        if (!isSameAsPublished || generation !== savedContentGenerationRef.current) {
+          return
+        }
+
+        publishedContentRef.current = savedContentRef.current
+
+        const hasUnpublishedChanges = !isSameFormContent(
+          getFormContent({ fields: contextRef.current.fields, ignoredPaths: ignoredContentPaths }),
+          publishedContentRef.current,
+        )
+
+        setContentChanges((prev) =>
+          prev.hasUnpublishedChanges === hasUnpublishedChanges
+            ? prev
+            : { ...prev, hasUnpublishedChanges },
+        )
+      })
+      .catch(() => {
+        // The published content stays unknown, so publishing falls back to version history
+      })
   })
 
+  /**
+   * A document loaded with a newer draft doesn't include its published content. If the draft has the
+   * same content as the published version, the saved content can be used as the published content.
+   */
+  const isDraftsEnabled = hasDraftsEnabled(docConfig)
+
   useEffect(() => {
-    publicationRef.current = undefined
-    publicationPromiseRef.current = undefined
-    setPublicationChanges({ allLocales: false, currentLocale: false })
-    if (initialState && !initializingFromProps) {
-      initialisePublicationState()
+    if (
+      !isDocumentForm ||
+      operation !== 'update' ||
+      !hasPublishedDoc ||
+      !isDraftsEnabled ||
+      (collectionSlug && id == null) ||
+      initialState?._status?.value !== 'draft'
+    ) {
+      return
     }
-    return () => {
-      publicationRequestRef.current += 1
-      baselineGenerationRef.current += 1
-    }
-  }, [id, collectionSlug, globalSlug, initialState, initializingFromProps, locale])
+
+    const controller = new AbortController()
+
+    loadPublishedContent(controller.signal)
+
+    return () => controller.abort()
+  }, [
+    collectionSlug,
+    hasPublishedDoc,
+    id,
+    initialState,
+    isDocumentForm,
+    isDraftsEnabled,
+    operation,
+  ])
 
   useThrottledEffect(
     () => {
@@ -1224,11 +1010,45 @@ export const Form: React.FC<FormProps> = (props) => {
     })
   })
 
+  useEffect(() => {
+    if (!isDocumentForm || modified || isSavedContentLockedRef.current) {
+      return
+    }
+
+    const content = getFormContent({ fields: formState, ignoredPaths: ignoredContentPaths })
+
+    savedContentRef.current = content
+
+    if (formState?._status?.value === 'published') {
+      publishedContentRef.current = content
+    }
+
+    const hasUnpublishedChanges = publishedContentRef.current
+      ? !isSameFormContent(content, publishedContentRef.current)
+      : undefined
+
+    setContentChanges((prev) =>
+      !prev.hasUnsavedChanges && prev.hasUnpublishedChanges === hasUnpublishedChanges
+        ? prev
+        : { hasUnpublishedChanges, hasUnsavedChanges: false },
+    )
+  }, [formState, ignoredContentPaths, isDocumentForm, modified, savedContentCaptureCount])
+
   useDebouncedEffect(
     () => {
-      if (!isFirstRenderRef.current && isDocumentForm && savedContentRef.current) {
-        setHasUnsavedChanges(getHasUnsavedChanges())
-        updatePublicationChanges()
+      if (isDocumentForm && modified && savedContentRef.current) {
+        const content = getFormContent({ fields: formState, ignoredPaths: ignoredContentPaths })
+        const hasUnsavedChanges = !isSameFormContent(content, savedContentRef.current)
+        const hasUnpublishedChanges = publishedContentRef.current
+          ? !isSameFormContent(content, publishedContentRef.current)
+          : undefined
+
+        setContentChanges((prev) =>
+          prev.hasUnsavedChanges === hasUnsavedChanges &&
+          prev.hasUnpublishedChanges === hasUnpublishedChanges
+            ? prev
+            : { hasUnpublishedChanges, hasUnsavedChanges },
+        )
       }
 
       if ((isFirstRenderRef.current || !dequal(formState, prevFormState.current)) && modified) {
@@ -1282,14 +1102,12 @@ export const Form: React.FC<FormProps> = (props) => {
                 <ProcessingContext value={processing}>
                   <BackgroundProcessingContext value={backgroundProcessing}>
                     <ModifiedContext value={modified}>
-                      <ContentModifiedContext value={isDocumentForm ? hasUnsavedChanges : null}>
-                        <PublicationContext value={isDocumentForm ? publicationChanges : undefined}>
-                          {/* eslint-disable-next-line @eslint-react/no-context-provider */}
-                          <FormFieldsContext.Provider value={fieldsReducer}>
-                            {children}
-                          </FormFieldsContext.Provider>
-                        </PublicationContext>
-                      </ContentModifiedContext>
+                      <ContentChangesContext value={isDocumentForm ? contentChanges : null}>
+                        {/* eslint-disable-next-line @eslint-react/no-context-provider */}
+                        <FormFieldsContext.Provider value={fieldsReducer}>
+                          {children}
+                        </FormFieldsContext.Provider>
+                      </ContentChangesContext>
                     </ModifiedContext>
                   </BackgroundProcessingContext>
                 </ProcessingContext>
@@ -1303,18 +1121,20 @@ export const Form: React.FC<FormProps> = (props) => {
 }
 
 export {
+  ContentChangesContext,
   DocumentFormContext,
   FormContext,
   FormFieldsContext,
   FormWatchContext,
   ModifiedContext,
   ProcessingContext,
-  PublicationContext,
   SubmittedContext,
   useAllFormFields,
   useDocumentForm,
   useForm,
   useFormFields,
+  useFormHasUnpublishedChanges,
+  useFormHasUnsavedChanges,
   useFormModified,
   useFormProcessing,
   useFormSubmitted,

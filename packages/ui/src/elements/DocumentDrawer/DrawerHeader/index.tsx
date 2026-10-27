@@ -5,7 +5,7 @@ import { useCallback } from 'react'
 import { Gutter } from '../../../elements/Gutter/index.js'
 import { useModal } from '../../../elements/Modal/index.js'
 import { RenderTitle } from '../../../elements/RenderTitle/index.js'
-import { useFormModified } from '../../../forms/Form/index.js'
+import { useFormHasUnsavedChanges } from '../../../forms/Form/index.js'
 import { XIcon } from '../../../icons/X/index.js'
 import { useDocumentInfo } from '../../../providers/DocumentInfo/index.js'
 import { useDocumentTitle } from '../../../providers/DocumentTitle/index.js'
@@ -24,7 +24,7 @@ export const DocumentDrawerHeader: React.FC<{
 }> = ({ AfterHeader, drawerSlug, showDocumentID = true }) => {
   const { closeModal, openModal } = useModal()
   const { t } = useTranslation()
-  const isModified = useFormModified()
+  const isModified = useFormHasUnsavedChanges()
 
   const handleOnClose = useCallback(() => {
     if (isModified) {

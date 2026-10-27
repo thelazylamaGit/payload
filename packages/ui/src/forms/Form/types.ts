@@ -215,7 +215,6 @@ export type MERGE_SERVER_STATE = {
   acceptValues?: AcceptValues
   prevStateRef: React.RefObject<FormState>
   serverState: FormState
-  submittedState?: FormState
   type: 'MERGE_SERVER_STATE'
 }
 
@@ -303,9 +302,6 @@ export type Context = {
   getDataByPath: GetDataByPath
   getField: GetField
   getFields: GetFields
-  /** Compare the latest document field values synchronously, without the UI debounce. */
-  getHasUnpublishedChanges: (allLocales?: boolean) => boolean | undefined
-  getHasUnsavedChanges: () => boolean
   getSiblingData: GetSiblingData
   initializing: boolean
   /**

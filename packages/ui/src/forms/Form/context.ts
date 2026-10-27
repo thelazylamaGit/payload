@@ -20,10 +20,18 @@ const ProcessingContext = createContext(false)
  * if autosave is running), this will be true.
  */
 const BackgroundProcessingContext = createContext(false)
-export type PublicationChanges = { allLocales: boolean; currentLocale: boolean }
-const PublicationContext = createContext<PublicationChanges | undefined>(undefined)
-const ContentModifiedContext = createContext<boolean | null>(null)
 const ModifiedContext = createContext(false)
+export type ContentChanges = {
+  /**
+   * Whether the form content differs from the last published content.
+   * `undefined` when the published content is unknown, e.g. the document was loaded with a newer draft.
+   */
+  hasUnpublishedChanges: boolean | undefined
+  /** Whether the form content differs from the last successfully saved content. */
+  hasUnsavedChanges: boolean
+}
+/** Only provided by document forms. */
+const ContentChangesContext = createContext<ContentChanges | null>(null)
 const InitializingContext = createContext(false)
 const FormFieldsContext = createSelectorContext<FormFieldsContextType>([{}, () => null])
 
@@ -49,19 +57,22 @@ const useFormProcessing = (): boolean => use(ProcessingContext)
  * if autosave is running), this will be true.
  */
 const useFormBackgroundProcessing = (): boolean => use(BackgroundProcessingContext)
-/** Content comparison for document forms; other forms retain interaction-based tracking. */
-const useFormContentModified = (): boolean => {
-  const hasUnsavedChanges = use(ContentModifiedContext)
+const useFormModified = (): boolean => use(ModifiedContext)
+/**
+ * Unlike `useFormModified`, this is `false` when an edit has been undone and the form content
+ * matches what was last saved. Falls back to `useFormModified` outside of document forms.
+ */
+const useFormHasUnsavedChanges = (): boolean => {
+  const contentChanges = use(ContentChangesContext)
   const modified = use(ModifiedContext)
 
-  return hasUnsavedChanges ?? modified
+  return contentChanges ? contentChanges.hasUnsavedChanges : modified
 }
-const useFormUnpublished = (allLocales = false): boolean | undefined => {
-  const changes = use(PublicationContext)
-
-  return allLocales ? changes?.allLocales : changes?.currentLocale
-}
-const useFormModified = (): boolean => use(ModifiedContext)
+/**
+ * Whether the form content differs from the last published content, or `undefined` if that is unknown.
+ */
+const useFormHasUnpublishedChanges = (): boolean | undefined =>
+  use(ContentChangesContext)?.hasUnpublishedChanges
 const useFormInitializing = (): boolean => use(InitializingContext)
 
 /**
@@ -82,7 +93,7 @@ const useAllFormFields = (): FormFieldsContextType => useFullContext(FormFieldsC
 
 export {
   BackgroundProcessingContext,
-  ContentModifiedContext,
+  ContentChangesContext,
   DocumentFormContext,
   FormContext,
   FormFieldsContext,
@@ -90,18 +101,17 @@ export {
   InitializingContext,
   ModifiedContext,
   ProcessingContext,
-  PublicationContext,
   SubmittedContext,
   useAllFormFields,
   useDocumentForm,
   useForm,
   useFormBackgroundProcessing,
-  useFormContentModified,
   useFormFields,
+  useFormHasUnpublishedChanges,
+  useFormHasUnsavedChanges,
   useFormInitializing,
   useFormModified,
   useFormProcessing,
   useFormSubmitted,
-  useFormUnpublished,
   useWatchForm,
 }

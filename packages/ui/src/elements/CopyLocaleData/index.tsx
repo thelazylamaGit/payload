@@ -9,7 +9,7 @@ import { toast } from 'sonner'
 
 import { CheckboxField } from '../../fields/Checkbox/index.js'
 import { SelectInput } from '../../fields/Select/index.js'
-import { useFormModified } from '../../forms/Form/context.js'
+import { useFormHasUnsavedChanges } from '../../forms/Form/context.js'
 import { useConfig } from '../../providers/Config/index.js'
 import { useDocumentInfo } from '../../providers/DocumentInfo/index.js'
 import { useLocale } from '../../providers/Locale/index.js'
@@ -35,7 +35,7 @@ export const CopyLocaleData: React.FC = () => {
   const { code } = useLocale()
   const { id, collectionSlug, globalSlug } = useDocumentInfo()
   const { i18n, t } = useTranslation()
-  const modified = useFormModified()
+  const modified = useFormHasUnsavedChanges()
   const { toggleModal } = useModal()
   const { copyDataFromLocale } = useServerFunctions()
   const router = useRouter()
