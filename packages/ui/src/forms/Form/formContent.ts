@@ -1,7 +1,7 @@
 import type { ClientCollectionConfig, ClientGlobalConfig, Data, FormState } from 'payload'
 
 import { dequal } from 'dequal/lite'
-import { deepCopyObjectSimpleWithoutReactComponents, reduceFieldsToValues } from 'payload/shared'
+import { reduceFieldsToValues } from 'payload/shared'
 
 import { requests } from '../../utilities/api.js'
 
@@ -16,8 +16,8 @@ export const getIgnoredContentPaths = (
     : ['_status', 'createdAt', 'updatedAt']
 
 /**
- * Returns a detached copy of the values the form would submit, without form metadata
- * (validation, collapsed rows, etc.) and without the given top-level paths.
+ * Returns the values the form would submit, without form metadata (validation, collapsed rows, etc.)
+ * and without the given top-level paths. Nested values are shared with the form state.
  */
 export const getFormContent = ({
   fields,
@@ -26,13 +26,13 @@ export const getFormContent = ({
   fields: FormState
   ignoredPaths: string[]
 }): Data => {
-  const content = deepCopyObjectSimpleWithoutReactComponents(reduceFieldsToValues(fields, true))
+  const content = reduceFieldsToValues(fields, true)
 
   for (const path of ignoredPaths) {
     delete content[path]
   }
 
-  return content
+  return (withoutEmptyValues(content) as Data) ?? {}
 }
 
 export const isSameFormContent = (a: Data, b: Data): boolean => {
@@ -76,9 +76,84 @@ export const getIsDraftSameAsPublished = async ({
         delete doc[path]
       }
 
-      return doc
+      return withoutEmptyValues(doc) as Data
     }),
   )
 
   return dequal(draft, published)
+}
+
+/**
+ * A rich text editor with no content, which is equivalent to an empty value.
+ */
+const isEmptyRichText = (value: Record<string, unknown>): boolean => {
+  const root = value.root as { children?: unknown; type?: unknown } | undefined
+
+  if (!root || typeof root !== 'object' || root.type !== 'root' || !Array.isArray(root.children)) {
+    return false
+  }
+
+  const [paragraph, ...rest] = root.children as { children?: unknown[]; type?: unknown }[]
+
+  return (
+    !paragraph ||
+    (rest.length === 0 && paragraph.type === 'paragraph' && !paragraph.children?.length)
+  )
+}
+
+/**
+ * Removes values that are visually empty, so that e.g. clearing a field that had no value,
+ * or undoing all input in an empty rich text editor, is not a change.
+ * Returns the same references for values that contain nothing empty.
+ */
+const withoutEmptyValues = (value: unknown): unknown => {
+  if (value === null || value === undefined || value === '') {
+    return undefined
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return undefined
+    }
+
+    let result: undefined | unknown[]
+
+    value.forEach((item, index) => {
+      // Array items keep their position, so empty items become `null` rather than being removed
+      const normalized = withoutEmptyValues(item) ?? null
+
+      if (normalized !== item) {
+        result ??= [...value]
+        result[index] = normalized
+      }
+    })
+
+    return result ?? value
+  }
+
+  if (typeof value !== 'object' || value instanceof File || value instanceof Date) {
+    return value
+  }
+
+  if (isEmptyRichText(value as Record<string, unknown>)) {
+    return undefined
+  }
+
+  let result: Record<string, unknown> | undefined
+
+  for (const [key, item] of Object.entries(value)) {
+    const normalized = withoutEmptyValues(item)
+
+    if (normalized !== item) {
+      result ??= { ...value }
+
+      if (normalized === undefined) {
+        delete result[key]
+      } else {
+        result[key] = normalized
+      }
+    }
+  }
+
+  return result ?? value
 }

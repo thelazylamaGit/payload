@@ -152,6 +152,34 @@ describe('document form content changes', () => {
     })
   })
 
+  it('should treat clearing a field that had no value as no change', () => {
+    renderForm()
+
+    edit('subtitle', 'Changed')
+    edit('subtitle', '')
+    settle()
+
+    expect(harness.changes.hasUnsavedChanges).toBe(false)
+  })
+
+  it('should treat an empty rich text editor as no value', () => {
+    renderForm()
+
+    edit('richText', {
+      root: { type: 'root', children: [{ type: 'paragraph', children: [] }] },
+    })
+    settle()
+
+    expect(harness.changes.hasUnsavedChanges).toBe(false)
+
+    edit('richText', {
+      root: { type: 'root', children: [{ type: 'paragraph', children: [{ text: 'a' }] }] },
+    })
+    settle()
+
+    expect(harness.changes.hasUnsavedChanges).toBe(true)
+  })
+
   it('should not treat fields registered without user interaction as changes', () => {
     renderForm()
 

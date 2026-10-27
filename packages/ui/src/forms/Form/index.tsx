@@ -1015,7 +1015,10 @@ export const Form: React.FC<FormProps> = (props) => {
       return
     }
 
-    const content = getFormContent({ fields: formState, ignoredPaths: ignoredContentPaths })
+    // Detached, so that later edits to the form state can't change the saved content
+    const content = deepCopyObjectSimpleWithoutReactComponents(
+      getFormContent({ fields: formState, ignoredPaths: ignoredContentPaths }),
+    )
 
     savedContentRef.current = content
 
