@@ -3,10 +3,13 @@ import type {
   BlocksField,
   BulkOperationResult,
   CollapsibleField,
+  CollectionAdminOptions,
+  CollectionConfig,
   CollectionSlug,
   CustomDocumentViewConfig,
   DefaultDocumentViewConfig,
   GeneratedTypes,
+  GroupByFieldName,
   JoinQuery,
   JsonObject,
   NamedGroupField,
@@ -222,6 +225,48 @@ describe('Types testing', () => {
       expect<Post>().type.toHaveProperty('externalType')
       expect<NonNullable<Post['externalType']>>().type.toHaveProperty('externalField')
       expect<NonNullable<Post['externalType']>>().type.toHaveProperty('externalNumber')
+    })
+  })
+
+  describe('collection admin groupBy', () => {
+    test('types field names from the generated collection type', () => {
+      expect<GroupByFieldName<'posts'>>().type.toBe<Extract<keyof Post, string>>()
+    })
+
+    test('accepts any string for an untyped collection config', () => {
+      expect<GroupByFieldName>().type.toBe<string>()
+      expect<{
+        groupBy: { default: 'anything'; options: ['anything'] }
+      }>().type.toBeAssignableTo<CollectionAdminOptions>()
+    })
+
+    test('accepts every groupBy shape with known field names', () => {
+      expect<{ groupBy: true }>().type.toBeAssignableTo<CollectionAdminOptions<'posts'>>()
+      expect<{ groupBy: '-text' }>().type.toBeAssignableTo<CollectionAdminOptions<'posts'>>()
+      expect<{ groupBy: ['text', 'selectField'] }>().type.toBeAssignableTo<
+        CollectionAdminOptions<'posts'>
+      >()
+      expect<{
+        groupBy: { default: 'selectField'; options: ['text', 'selectField'] }
+      }>().type.toBeAssignableTo<CollectionAdminOptions<'posts'>>()
+    })
+
+    test('rejects unknown field names for a typed collection config', () => {
+      expect<{ groupBy: 'notAField' }>().type.not.toBeAssignableTo<
+        CollectionAdminOptions<'posts'>
+      >()
+      expect<{ groupBy: ['text', 'notAField'] }>().type.not.toBeAssignableTo<
+        CollectionAdminOptions<'posts'>
+      >()
+      expect<{ groupBy: { default: '-notAField' } }>().type.not.toBeAssignableTo<
+        CollectionAdminOptions<'posts'>
+      >()
+    })
+
+    test('types groupBy through CollectionConfig with a slug', () => {
+      expect<NonNullable<CollectionConfig<'posts'>['admin']>>().type.toBe<
+        CollectionAdminOptions<'posts'>
+      >()
     })
   })
 

@@ -11,6 +11,7 @@ export { addSessionToUser, removeExpiredSessions } from '../auth/sessions.js'
 export { getFromImportMap } from '../bin/generateImportMap/utilities/getFromImportMap.js'
 export { parsePayloadComponent } from '../bin/generateImportMap/utilities/parsePayloadComponent.js'
 export { defaults as collectionDefaults } from '../collections/config/defaults.js'
+export { getGroupByConfig, isGroupByAllowed } from '../collections/config/groupBy.js'
 export {
   BASE_36_DIGITS,
   generateKeyBetween,

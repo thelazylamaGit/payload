@@ -3,10 +3,12 @@ import type { ClientField, Field, SanitizedCollectionConfig } from 'payload'
 
 import './index.scss'
 
+import { getGroupByConfig, isGroupByAllowed } from 'payload/shared'
 import React, { useMemo } from 'react'
 
 import { SelectInput } from '../../fields/Select/Input.js'
 import { useAuth } from '../../providers/Auth/index.js'
+import { useConfig } from '../../providers/Config/index.js'
 import { useListQuery } from '../../providers/ListQuery/index.js'
 import { useTranslation } from '../../providers/Translation/index.js'
 import { reduceFieldsToOptions } from '../../utilities/reduceFieldsToOptions.js'
@@ -51,6 +53,7 @@ export const GroupByBuilder: React.FC<Props> = ({
 }) => {
   const { i18n, t } = useTranslation()
   const { permissions } = useAuth()
+  const { getEntityConfig } = useConfig()
   const listQuery = useListQuery()
 
   const isFormMode = typeof onChange === 'function'
@@ -70,6 +73,10 @@ export const GroupByBuilder: React.FC<Props> = ({
   )
 
   const groupByField = reducedFields.find((field) => field.value === groupByFieldName)
+
+  const { options: allowedGroupByFields } = getGroupByConfig({
+    groupBy: getEntityConfig({ collectionSlug })?.admin?.groupBy,
+  })
 
   const handleFieldChange = useMemo(() => {
     if (isFormMode) {
@@ -177,7 +184,8 @@ export const GroupByBuilder: React.FC<Props> = ({
             (field) =>
               !field.field.admin?.disableGroupBy &&
               field.value !== 'id' &&
-              supportedFieldTypes.includes(field.field.type),
+              supportedFieldTypes.includes(field.field.type) &&
+              isGroupByAllowed({ groupBy: String(field.value), options: allowedGroupByFields }),
           )}
           value={{
             label: groupByField?.label || t('general:selectValue'),

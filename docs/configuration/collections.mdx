@@ -159,7 +159,7 @@ The following options are available:
 | `description`                | Text to display below the Collection label in the List View to give editors more information. Alternatively, you can use the `admin.components.Description` to render a React component. [More details](#custom-components). |
 | `defaultColumns`             | Array of field names that correspond to which columns to show by default in this Collection's List View.                                                                                                                     |
 | `disableCopyToLocale`        | Disables the "Copy to Locale" button while editing documents within this Collection. Only applicable when localization is enabled.                                                                                           |
-| `groupBy`                    | Beta. Enable grouping by a field in the list view. Set to `true`, or to a field name (e.g. `'status'`) to group by that field by default. [More details](#group-by).                                                         |
+| `groupBy`                    | Beta. Enable grouping by a field in the list view. Set to `true`, a default field name, an array of allowed field names, or `{ default, options }`. [More details](#group-by).                                               |
 | `hideAPIURL`                 | Hides the "API URL" meta field while editing documents within this Collection.                                                                                                                                               |
 | `enableRichTextLink`         | The [Rich Text](../fields/rich-text) field features a `Link` element which allows for users to automatically reference related documents within their rich text. Set to `true` by default.                                   |
 | `enableRichTextRelationship` | The [Rich Text](../fields/rich-text) field features a `Relationship` element which allows for users to automatically reference related documents within their rich text. Set to `true` by default.                           |
@@ -183,15 +183,27 @@ The following options are available:
 
 ### Group By
 
-Set `admin.groupBy` to `true` to let users group the List View by a field. To group by a field by default, pass its name instead. Prefix it with `-` to sort the groups in descending order:
+Set `admin.groupBy` to let users group the List View by a field. It accepts:
+
+| Value                                                    | Behavior                                                        |
+| -------------------------------------------------------- | --------------------------------------------------------------- |
+| `true`                                                   | Users can group by any supported field.                         |
+| `'status'`                                               | Same as `true`, and the list is grouped by `status` by default. |
+| `['status', 'priority']`                                 | Users can only group by `status` or `priority`. No default.     |
+| `{ default: 'status', options: ['status', 'priority'] }` | Only `status` or `priority`, grouped by `status` by default.    |
+
+Prefix the default with `-` to sort the groups in descending order. When both are set, `default` must be one of `options`.
 
 ```ts
 import type { CollectionConfig } from 'payload'
 
-export const Posts: CollectionConfig = {
+export const Posts: CollectionConfig<'posts'> = {
   slug: 'posts',
   admin: {
-    groupBy: 'status',
+    groupBy: {
+      default: 'status',
+      options: ['status', 'priority'],
+    },
   },
   fields: [
     // ...
@@ -199,7 +211,9 @@ export const Posts: CollectionConfig = {
 }
 ```
 
-The field name only sets the initial grouping. Users can still change or clear it, and a `groupBy` URL parameter, the selected query preset or the user's saved preferences take precedence over it. For `select` and `radio` fields, group headings show the option labels rather than the stored values.
+Field names are type-checked against your generated types when the config is typed as `CollectionConfig<'your-slug'>`. With a plain `CollectionConfig`, any string is accepted.
+
+The default only sets the initial grouping. Users can still change or clear it, and a `groupBy` URL parameter, the selected query preset or the user's saved preferences take precedence over it. Values that aren't in `options` are ignored. For `select` and `radio` fields, group headings show the option labels rather than the stored values.
 
 ### Custom Components
 

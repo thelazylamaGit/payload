@@ -28,6 +28,7 @@ import {
   addDefaultsToCollectionConfig,
   addDefaultsToLoginWithUsernameConfig,
 } from './defaults.js'
+import { validateGroupBy } from './groupBy.js'
 import { sanitizeCompoundIndexes } from './sanitizeCompoundIndexes.js'
 import { validateUseAsTitle } from './useAsTitle.js'
 
@@ -353,6 +354,7 @@ export const sanitizeCollection = async (
   }
 
   validateUseAsTitle(sanitized)
+  validateGroupBy(sanitized)
 
   const sanitizedConfig = sanitized as SanitizedCollectionConfig
 

@@ -365,7 +365,28 @@ export type BaseFilter = (args: {
  */
 export type BaseListFilter = BaseFilter
 
-export type CollectionAdminOptions = {
+/**
+ * Field names accepted by `admin.groupBy`.
+ * Typed from the generated collection types when the config is declared as `CollectionConfig<'slug'>`.
+ */
+export type GroupByFieldName<TSlug extends CollectionSlug = any> =
+  IsAny<DataFromCollectionSlug<TSlug>> extends true
+    ? string
+    : Extract<keyof DataFromCollectionSlug<TSlug>, string>
+
+export type CollectionGroupByOptions<TSlug extends CollectionSlug = any> = {
+  /**
+   * Field to group by on page load. Prefix with `-` to sort groups descending.
+   * Must be one of `options` when both are set.
+   */
+  default?: `-${GroupByFieldName<TSlug>}` | GroupByFieldName<TSlug>
+  /**
+   * The only fields offered in the group-by dropdown. Omit to allow every supported field.
+   */
+  options?: GroupByFieldName<TSlug>[]
+}
+
+export type CollectionAdminOptions<TSlug extends CollectionSlug = any> = {
   /**
    * Defines a default base filter which will be applied in the following parts of the admin panel:
    * - List View
@@ -536,13 +557,22 @@ export type CollectionAdminOptions = {
   /**
    * @description Enable grouping by a field in the list view.
    * Uses `payload.findDistinct` under the hood to populate the group-by options.
-   * - Set to `true` to enable grouping without a default.
-   * - Provide a field name to enable grouping and initially group by that field. Prefix with `-` to sort groups descending.
-   *   Users can still change or clear the grouping, and URL params, query presets and saved preferences take precedence.
+   * - Set to `true` to enable grouping by any supported field.
+   * - Provide a field name to also group by that field by default. Prefix with `-` to sort groups descending.
+   * - Provide an array of field names to only allow grouping by those fields.
+   * - Provide `{ default, options }` to combine both.
+   *
+   * The default only sets the initial grouping: users can still change or clear it, and URL params,
+   * query presets and saved preferences take precedence when they use an allowed field.
    *
    * @experimental This option is currently in beta and may change in future releases. Use at your own risk.
    */
-  groupBy?: boolean | string
+  groupBy?:
+    | `-${GroupByFieldName<TSlug>}`
+    | boolean
+    | CollectionGroupByOptions<TSlug>
+    | GroupByFieldName<TSlug>
+    | GroupByFieldName<TSlug>[]
   /**
    * Exclude the collection from the admin nav and routes
    */
@@ -598,7 +628,7 @@ export type CollectionConfig<TSlug extends CollectionSlug = any> = {
   /**
    * Collection admin options
    */
-  admin?: CollectionAdminOptions
+  admin?: CollectionAdminOptions<TSlug>
   /**
    * Collection login options
    *

@@ -1340,6 +1340,8 @@ export {
   type ServerOnlyUploadProperties,
 } from './collections/config/client.js'
 
+export type { GroupByConfig } from './collections/config/groupBy.js'
+
 export type {
   AfterChangeHook as CollectionAfterChangeHook,
   AfterDeleteHook as CollectionAfterDeleteHook,
@@ -1365,7 +1367,9 @@ export type {
   Collection,
   CollectionAdminOptions,
   CollectionConfig,
+  CollectionGroupByOptions,
   DataFromCollectionSlug,
+  GroupByFieldName,
   HookOperationType,
   MeHook as CollectionMeHook,
   RefreshHook as CollectionRefreshHook,
@@ -1376,7 +1380,6 @@ export type {
   TypeWithID,
   TypeWithTimestamps,
 } from './collections/config/types.js'
-
 export type { CompoundIndex } from './collections/config/types.js'
 export type { SanitizedCompoundIndex } from './collections/config/types.js'
 
