@@ -59,7 +59,10 @@ for filename in glob.glob(f'{root}/*.tgz'):
                 assert label in english, label
         elif name == 'payload':
             types = archive.extractfile('package/dist/collections/config/types.d.ts').read().decode()
-            assert 'groupBy?: boolean | string' in types, 'admin.groupBy string type'
+            assert 'CollectionGroupByOptions<TSlug>' in types, 'admin.groupBy options type'
+            assert 'package/dist/collections/config/groupBy.js' in files, 'groupBy helpers'
+            shared = archive.extractfile('package/dist/exports/shared.js').read().decode()
+            assert 'getGroupByConfig' in shared, 'payload/shared groupBy export'
         elif name == '@payloadcms/next':
             for path in ('dist/views/List/getInitialGroupBy.js', 'dist/views/List/getOptionLabel.js'):
                 assert 'package/' + path in files, path
