@@ -77,6 +77,7 @@ export const Form: React.FC<FormProps> = (props) => {
     getDocPreferences,
     globalSlug,
     hasPublishedDoc,
+    isDraftSameAsPublished,
   } = useDocumentInfo()
 
   const validateDrafts = hasDraftValidationEnabled(docConfig)
@@ -168,6 +169,7 @@ export const Form: React.FC<FormProps> = (props) => {
   const [contentChanges, setContentChanges] = useState<ContentChanges>({
     hasUnpublishedChanges: undefined,
     hasUnsavedChanges: false,
+    isSavedContentPublished: undefined,
   })
 
   const [modified, _setModified] = useState(false)
@@ -177,7 +179,8 @@ export const Form: React.FC<FormProps> = (props) => {
    * See the `modifiedWhileProcessingRef` ref for more details.
    */
   const setModified = useCallback((modified: boolean) => {
-    if (backgroundProcessingRef.current) {
+    // Only edits count, not the form resetting `modified` after a background submission
+    if (modified && backgroundProcessingRef.current) {
       modifiedWhileProcessingRef.current = true
     }
 
@@ -188,6 +191,7 @@ export const Form: React.FC<FormProps> = (props) => {
         prev.hasUnsavedChanges && prev.hasUnpublishedChanges !== false
           ? prev
           : {
+              ...prev,
               hasUnpublishedChanges: prev.hasUnpublishedChanges === undefined ? undefined : true,
               hasUnsavedChanges: true,
             },
@@ -205,9 +209,10 @@ export const Form: React.FC<FormProps> = (props) => {
    * are set without user interaction, e.g. server normalization or fields registered by components
    * like the auth password fields, are never mistaken for changes.
    *
-   * `publishedContentRef` is captured alongside it whenever the saved content has a `published` status.
-   * It is unknown when a document is loaded with a newer draft, in which case publishing falls back to
-   * the version-based behavior.
+   * `publishedContentRef` is captured alongside it whenever the saved content is known to be published:
+   * it has a `published` status, or it is a draft with the same content as the published version
+   * (determined by the server on load, or by `checkPublishedContent` after saving a draft).
+   * Otherwise it is unknown, and the status and publish button fall back to version history.
    */
   const savedContentRef = useRef<Data>(undefined)
   const publishedContentRef = useRef<Data>(undefined)
@@ -218,6 +223,12 @@ export const Form: React.FC<FormProps> = (props) => {
   const isSavedContentLockedRef = useRef(false)
   /** Incremented whenever the saved content is replaced by a save or reset. */
   const savedContentGenerationRef = useRef(0)
+  /** Whether the saved draft is known to have the same content as the published version. */
+  const isSavedDraftPublishedRef = useRef(false)
+  const checkPublishedContentRef = useRef<{
+    controller: AbortController
+    timeout: ReturnType<typeof setTimeout>
+  }>(undefined)
   const [savedContentCaptureCount, setSavedContentCaptureCount] = useState(0)
   const ignoredContentPaths = useMemo(() => getIgnoredContentPaths(docConfig), [docConfig])
 
@@ -227,10 +238,93 @@ export const Form: React.FC<FormProps> = (props) => {
     setSavedContentCaptureCount((count) => count + 1)
   }, [])
 
+  const cancelCheckPublishedContent = useCallback(() => {
+    if (checkPublishedContentRef.current) {
+      clearTimeout(checkPublishedContentRef.current.timeout)
+      checkPublishedContentRef.current.controller.abort()
+      checkPublishedContentRef.current = undefined
+    }
+  }, [])
+
   const resetSavedContent = useCallback(() => {
+    cancelCheckPublishedContent()
+    isSavedDraftPublishedRef.current = false
     publishedContentRef.current = undefined
     unlockSavedContent()
-  }, [unlockSavedContent])
+  }, [cancelCheckPublishedContent, unlockSavedContent])
+
+  const isDraftsEnabled = hasDraftsEnabled(docConfig)
+
+  /**
+   * After saving a draft while the published content is unknown, check whether the draft now has the
+   * same content as the published version. Debounced, so that frequent autosaves only check once.
+   */
+  const checkPublishedContent = useCallback(() => {
+    if (
+      !isDocumentForm ||
+      !isDraftsEnabled ||
+      !hasPublishedDoc ||
+      publishedContentRef.current ||
+      (collectionSlug && id == null)
+    ) {
+      return
+    }
+
+    cancelCheckPublishedContent()
+
+    const controller = new AbortController()
+    const generation = savedContentGenerationRef.current
+
+    const timeout = setTimeout(() => {
+      void getIsDraftSameAsPublished({
+        ignoredPaths: ignoredContentPaths,
+        isLocalized: Boolean(config.localization),
+        signal: controller.signal,
+        url: formatAdminURL({
+          apiRoute: config.routes.api,
+          path: collectionSlug ? `/${collectionSlug}/${id}` : `/globals/${globalSlug}`,
+        }),
+      })
+        .then((isSameAsPublished) => {
+          // Only applies to the saved content it was checked for
+          if (!isSameAsPublished || generation !== savedContentGenerationRef.current) {
+            return
+          }
+
+          isSavedDraftPublishedRef.current = true
+          publishedContentRef.current = savedContentRef.current
+
+          const hasUnpublishedChanges = !isSameFormContent(
+            getFormContent({
+              fields: contextRef.current.fields,
+              ignoredPaths: ignoredContentPaths,
+            }),
+            publishedContentRef.current,
+          )
+
+          setContentChanges((prev) => ({
+            ...prev,
+            hasUnpublishedChanges,
+            isSavedContentPublished: true,
+          }))
+        })
+        .catch(() => {
+          // The published content stays unknown, so the status falls back to version history
+        })
+    }, 1000)
+
+    checkPublishedContentRef.current = { controller, timeout }
+  }, [
+    cancelCheckPublishedContent,
+    collectionSlug,
+    config,
+    globalSlug,
+    hasPublishedDoc,
+    id,
+    ignoredContentPaths,
+    isDocumentForm,
+    isDraftsEnabled,
+  ])
 
   const formRef = useRef<HTMLFormElement>(null)
   const contextRef = useRef({} as FormContextType)
@@ -458,6 +552,7 @@ export const Form: React.FC<FormProps> = (props) => {
       }
 
       isSavedContentLockedRef.current = true
+      isSavedDraftPublishedRef.current = false
 
       try {
         const formData = await contextRef.current.createFormData(overrides, {
@@ -522,6 +617,7 @@ export const Form: React.FC<FormProps> = (props) => {
           }
 
           unlockSavedContent()
+          checkPublishedContent()
           setSubmitted(false)
           setProcessing(false)
 
@@ -628,6 +724,7 @@ export const Form: React.FC<FormProps> = (props) => {
       waitForAutocomplete,
       setModified,
       setSubmitted,
+      checkPublishedContent,
       unlockSavedContent,
     ],
   )
@@ -885,10 +982,14 @@ export const Form: React.FC<FormProps> = (props) => {
     }
   }, [submittedFromProps])
 
+  // Determined by the server when the document was loaded, so only read along with a new initial state
+  const getIsLoadedDraftPublished = useEffectEvent(() => Boolean(isDraftSameAsPublished))
+
   useEffect(() => {
     if (initialState) {
       contextRef.current = { ...initContextState } as FormContextType
       resetSavedContent()
+      isSavedDraftPublishedRef.current = getIsLoadedDraftPublished()
       dispatchFields({
         type: 'REPLACE_STATE',
         optimize: false,
@@ -898,74 +999,7 @@ export const Form: React.FC<FormProps> = (props) => {
     }
   }, [initialState, dispatchFields, resetSavedContent])
 
-  const loadPublishedContent = useEffectEvent((signal: AbortSignal) => {
-    const generation = savedContentGenerationRef.current
-
-    void getIsDraftSameAsPublished({
-      ignoredPaths: ignoredContentPaths,
-      isLocalized: Boolean(config.localization),
-      signal,
-      url: formatAdminURL({
-        apiRoute: config.routes.api,
-        path: collectionSlug ? `/${collectionSlug}/${id}` : `/globals/${globalSlug}`,
-      }),
-    })
-      .then((isSameAsPublished) => {
-        // Only applies to the saved content it was loaded for
-        if (!isSameAsPublished || generation !== savedContentGenerationRef.current) {
-          return
-        }
-
-        publishedContentRef.current = savedContentRef.current
-
-        const hasUnpublishedChanges = !isSameFormContent(
-          getFormContent({ fields: contextRef.current.fields, ignoredPaths: ignoredContentPaths }),
-          publishedContentRef.current,
-        )
-
-        setContentChanges((prev) =>
-          prev.hasUnpublishedChanges === hasUnpublishedChanges
-            ? prev
-            : { ...prev, hasUnpublishedChanges },
-        )
-      })
-      .catch(() => {
-        // The published content stays unknown, so publishing falls back to version history
-      })
-  })
-
-  /**
-   * A document loaded with a newer draft doesn't include its published content. If the draft has the
-   * same content as the published version, the saved content can be used as the published content.
-   */
-  const isDraftsEnabled = hasDraftsEnabled(docConfig)
-
-  useEffect(() => {
-    if (
-      !isDocumentForm ||
-      operation !== 'update' ||
-      !hasPublishedDoc ||
-      !isDraftsEnabled ||
-      (collectionSlug && id == null) ||
-      initialState?._status?.value !== 'draft'
-    ) {
-      return
-    }
-
-    const controller = new AbortController()
-
-    loadPublishedContent(controller.signal)
-
-    return () => controller.abort()
-  }, [
-    collectionSlug,
-    hasPublishedDoc,
-    id,
-    initialState,
-    isDocumentForm,
-    isDraftsEnabled,
-    operation,
-  ])
+  useEffect(() => cancelCheckPublishedContent, [cancelCheckPublishedContent])
 
   useThrottledEffect(
     () => {
@@ -1022,18 +1056,22 @@ export const Form: React.FC<FormProps> = (props) => {
 
     savedContentRef.current = content
 
-    if (formState?._status?.value === 'published') {
+    if (formState?._status?.value === 'published' || isSavedDraftPublishedRef.current) {
       publishedContentRef.current = content
     }
 
-    const hasUnpublishedChanges = publishedContentRef.current
-      ? !isSameFormContent(content, publishedContentRef.current)
+    const isSavedContentPublished = publishedContentRef.current
+      ? isSameFormContent(content, publishedContentRef.current)
       : undefined
+    const hasUnpublishedChanges =
+      isSavedContentPublished === undefined ? undefined : !isSavedContentPublished
 
     setContentChanges((prev) =>
-      !prev.hasUnsavedChanges && prev.hasUnpublishedChanges === hasUnpublishedChanges
+      !prev.hasUnsavedChanges &&
+      prev.hasUnpublishedChanges === hasUnpublishedChanges &&
+      prev.isSavedContentPublished === isSavedContentPublished
         ? prev
-        : { hasUnpublishedChanges, hasUnsavedChanges: false },
+        : { hasUnpublishedChanges, hasUnsavedChanges: false, isSavedContentPublished },
     )
   }, [formState, ignoredContentPaths, isDocumentForm, modified, savedContentCaptureCount])
 
@@ -1050,7 +1088,7 @@ export const Form: React.FC<FormProps> = (props) => {
           prev.hasUnsavedChanges === hasUnsavedChanges &&
           prev.hasUnpublishedChanges === hasUnpublishedChanges
             ? prev
-            : { hasUnpublishedChanges, hasUnsavedChanges },
+            : { ...prev, hasUnpublishedChanges, hasUnsavedChanges },
         )
       }
 
@@ -1138,6 +1176,7 @@ export {
   useFormFields,
   useFormHasUnpublishedChanges,
   useFormHasUnsavedChanges,
+  useFormIsSavedContentPublished,
   useFormModified,
   useFormProcessing,
   useFormSubmitted,

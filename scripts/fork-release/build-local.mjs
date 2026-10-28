@@ -63,6 +63,7 @@ try {
     'packages/next/src/views/List',
     'packages/ui/src/elements/ClipboardAction',
     'packages/ui/src/forms/Form/contentChanges.spec.ts',
+    'packages/ui/src/utilities/documentContent.spec.ts',
     'test/clipboard',
     'packages/richtext-lexical/src/features/blocks/client/component/BlockContent.spec.ts',
     'packages/richtext-lexical/src/features/blocks/client/component/useBlockCollapsedState.spec.ts',

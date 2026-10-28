@@ -212,7 +212,13 @@ export const renderDocument = async ({
   const operation = (collectionSlug && idFromArgs) || globalSlug ? 'update' : 'create'
 
   const [
-    { hasPublishedDoc, mostRecentVersionIsAutosaved, unpublishedVersionCount, versionCount },
+    {
+      hasPublishedDoc,
+      isDraftSameAsPublished,
+      mostRecentVersionIsAutosaved,
+      unpublishedVersionCount,
+      versionCount,
+    },
     { state: formState },
   ] = await Promise.all([
     getVersions({
@@ -417,6 +423,7 @@ export const renderDocument = async ({
         id={id}
         initialData={doc}
         initialState={formState}
+        isDraftSameAsPublished={isDraftSameAsPublished}
         isEditing={isEditing}
         isLocked={isLocked}
         isTrashed={isTrashedDoc}

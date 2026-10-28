@@ -258,6 +258,7 @@ export {
   useFormHasUnpublishedChanges,
   useFormHasUnsavedChanges,
   useFormInitializing,
+  useFormIsSavedContentPublished,
   useFormModified,
   useFormProcessing,
   useFormSubmitted,

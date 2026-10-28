@@ -42,6 +42,11 @@ export type DocumentInfoProps = {
   readonly id?: number | string
   readonly initialData?: Data
   readonly initialState?: FormState
+  /**
+   * Whether the latest draft has the same content as the published version, when there are newer drafts.
+   * Determined when the document is loaded.
+   */
+  readonly isDraftSameAsPublished?: boolean
   readonly isEditing?: boolean
   readonly isLocked: boolean
   readonly isTrashed?: boolean

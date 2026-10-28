@@ -10,6 +10,11 @@ import {
 } from 'payload'
 import { hasAutosaveEnabled, hasDraftsEnabled } from 'payload/shared'
 
+import {
+  getCollectionDraftsSameAsPublished,
+  getIsGlobalDraftSameAsPublished,
+} from '../../utilities/getDraftsSameAsPublished.js'
+
 type Args = {
   collectionConfig?: SanitizedCollectionConfig
   /**
@@ -29,6 +34,10 @@ type Args = {
 
 type Result = Promise<{
   hasPublishedDoc: boolean
+  /**
+   * Whether the latest draft has the same content as the published version, when there are newer drafts.
+   */
+  isDraftSameAsPublished: boolean
   mostRecentVersionIsAutosaved: boolean
   unpublishedVersionCount: number
   versionCount: number
@@ -50,6 +59,7 @@ export const getVersions = async ({
   const id = sanitizeID(idArg)
   let publishedDoc
   let hasPublishedDoc = false
+  let isDraftSameAsPublished = false
   let mostRecentVersionIsAutosaved = false
   let unpublishedVersionCount = 0
   let versionCount = 0
@@ -72,6 +82,7 @@ export const getVersions = async ({
 
     return {
       hasPublishedDoc,
+      isDraftSameAsPublished,
       mostRecentVersionIsAutosaved,
       unpublishedVersionCount,
       versionCount,
@@ -82,6 +93,7 @@ export const getVersions = async ({
     if (!id) {
       return {
         hasPublishedDoc,
+        isDraftSameAsPublished,
         mostRecentVersionIsAutosaved,
         unpublishedVersionCount,
         versionCount,
@@ -195,6 +207,14 @@ export const getVersions = async ({
           ),
         }))
       }
+
+      if (unpublishedVersionCount > 0) {
+        isDraftSameAsPublished = await getIsDraftSameAsPublishedSafely(async () =>
+          (
+            await getCollectionDraftsSameAsPublished({ collectionConfig, ids: [id], payload, user })
+          ).has(id),
+        )
+      }
     }
 
     const countVersionsWhere: Record<string, any> = {
@@ -237,6 +257,7 @@ export const getVersions = async ({
           depth: 0,
           locale,
           select: {
+            _status: true,
             updatedAt: true,
           },
           user,
@@ -291,6 +312,12 @@ export const getVersions = async ({
           ),
         }))
       }
+
+      if (unpublishedVersionCount > 0) {
+        isDraftSameAsPublished = await getIsDraftSameAsPublishedSafely(() =>
+          getIsGlobalDraftSameAsPublished({ globalConfig, payload, user }),
+        )
+      }
     }
 
     ;({ totalDocs: versionCount } = await payload.countGlobalVersions({
@@ -309,8 +336,20 @@ export const getVersions = async ({
 
   return {
     hasPublishedDoc,
+    isDraftSameAsPublished,
     mostRecentVersionIsAutosaved,
     unpublishedVersionCount,
     versionCount,
+  }
+}
+
+/**
+ * The comparison only refines the status, so if it fails the version history is used as before.
+ */
+const getIsDraftSameAsPublishedSafely = async (fn: () => Promise<boolean>): Promise<boolean> => {
+  try {
+    return await fn()
+  } catch {
+    return false
   }
 }

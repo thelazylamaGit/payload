@@ -8,7 +8,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ContentChanges } from './context.js'
 import type { Context, FormProps } from './types.js'
 
-import { useForm, useFormHasUnpublishedChanges, useFormHasUnsavedChanges } from './context.js'
+import {
+  useForm,
+  useFormHasUnpublishedChanges,
+  useFormHasUnsavedChanges,
+  useFormIsSavedContentPublished,
+  useFormModified,
+} from './context.js'
 import { Form } from './index.js'
 
 const harness = vi.hoisted(() => ({
@@ -16,6 +22,9 @@ const harness = vi.hoisted(() => ({
   changes: undefined as ContentChanges | undefined,
   get: vi.fn(),
   getFormState: vi.fn(),
+  isDraftSameAsPublished: false,
+  isSavedContentPublished: undefined as boolean | undefined,
+  modified: false,
   request: vi.fn(),
 }))
 
@@ -41,6 +50,7 @@ vi.mock('../../providers/DocumentInfo/index.js', () => ({
     docConfig: { slug: 'posts', versions: { drafts: {} } },
     getDocPreferences: async () => ({}),
     hasPublishedDoc: true,
+    isDraftSameAsPublished: harness.isDraftSameAsPublished,
   }),
 }))
 vi.mock('../../providers/Locale/index.js', () => ({ useLocale: () => ({ code: 'en' }) }))
@@ -82,6 +92,7 @@ beforeEach(() => {
   vi.stubGlobal('IS_REACT_ACT_ENVIRONMENT', true)
   vi.useFakeTimers()
   vi.clearAllMocks()
+  harness.isDraftSameAsPublished = false
 })
 
 afterEach(() => {
@@ -98,6 +109,8 @@ const Probe = () => {
     hasUnpublishedChanges: useFormHasUnpublishedChanges(),
     hasUnsavedChanges: useFormHasUnsavedChanges(),
   }
+  harness.isSavedContentPublished = useFormIsSavedContentPublished()
+  harness.modified = useFormModified()
 
   return null
 }
@@ -256,18 +269,12 @@ describe('document form content changes', () => {
     })
   })
 
-  it('should use the saved content as published content when the loaded draft matches it', async () => {
-    harness.get.mockImplementation(
-      async () =>
-        new Response(JSON.stringify({ title: 'Draft', updatedAt: String(Math.random()) })),
-    )
+  it('should use the saved content as published content when the server found the loaded draft matches it', () => {
+    harness.isDraftSameAsPublished = true
     renderForm({ initialState: docState('Draft', 'draft') })
 
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(10)
-    })
-
-    expect(harness.get).toHaveBeenCalledTimes(2)
+    expect(harness.get).not.toHaveBeenCalled()
+    expect(harness.isSavedContentPublished).toBe(true)
     expect(harness.changes.hasUnpublishedChanges).toBe(false)
 
     edit('title', 'Changed')
@@ -276,18 +283,86 @@ describe('document form content changes', () => {
     expect(harness.changes.hasUnpublishedChanges).toBe(true)
   })
 
-  it('should not know the published content when the loaded draft differs from it', async () => {
+  it('should report whether the saved draft is the same as the published content', async () => {
+    renderForm({ onSuccess: () => docState('Changed', 'draft') })
+
+    edit('title', 'Changed')
+    respond(200)
+    await submit('draft')
+
+    expect(harness.isSavedContentPublished).toBe(false)
+
+    renderForm({ onSuccess: () => docState('Original', 'draft') })
+    edit('title', 'Changed')
+    edit('title', 'Original')
+    respond(200)
+    await submit('draft')
+
+    expect(harness.isSavedContentPublished).toBe(true)
+  })
+
+  it('should check once whether a saved draft matches the published content when that is unknown', async () => {
     harness.get.mockImplementation(
       async (_url: string, { params }) =>
-        new Response(JSON.stringify({ title: String(params.draft) })),
+        new Response(
+          JSON.stringify({ _status: params.draft ? 'draft' : 'published', title: 'Original' }),
+        ),
     )
-    renderForm({ initialState: docState('Draft', 'draft') })
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(10)
+    renderForm({
+      initialState: docState('Draft', 'draft'),
+      onSuccess: () => docState('Original', 'draft'),
     })
 
-    expect(harness.changes.hasUnpublishedChanges).toBeUndefined()
+    expect(harness.isSavedContentPublished).toBeUndefined()
+
+    for (let i = 0; i < 2; i++) {
+      edit('title', 'Original')
+      respond(200)
+      await submit('draft')
+    }
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(harness.get).toHaveBeenCalledTimes(2)
+    expect(harness.isSavedContentPublished).toBe(true)
+    expect(harness.changes.hasUnpublishedChanges).toBe(false)
+  })
+
+  it('should not use an unpublished document as published content', async () => {
+    harness.get.mockImplementation(
+      async () => new Response(JSON.stringify({ _status: 'draft', title: 'Original' })),
+    )
+    renderForm({
+      initialState: docState('Draft', 'draft'),
+      onSuccess: () => docState('Original', 'draft'),
+    })
+
+    edit('title', 'Original')
+    respond(200)
+    await submit('draft')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(harness.isSavedContentPublished).toBeUndefined()
+  })
+
+  it('should reset modified and capture the saved content after every background save', async () => {
+    renderForm({ onSuccess: () => docState('Changed', 'draft') })
+
+    for (const title of ['Changed', 'Original']) {
+      edit('title', title)
+      act(() => harness.api.setBackgroundProcessing(true))
+      respond(200)
+      await submit('draft')
+      act(() => harness.api.setBackgroundProcessing(false))
+
+      expect(harness.modified).toBe(false)
+    }
+
+    expect(harness.isSavedContentPublished).toBe(false)
   })
 
   it('should forget the published content when the form is reset to a draft', async () => {

@@ -4,7 +4,7 @@ import { formatAdminURL } from 'payload/shared'
 import React, { useCallback } from 'react'
 import { toast } from 'sonner'
 
-import { useForm } from '../../forms/Form/context.js'
+import { useForm, useFormIsSavedContentPublished } from '../../forms/Form/context.js'
 import { useConfig } from '../../providers/Config/index.js'
 import { useDocumentInfo } from '../../providers/DocumentInfo/index.js'
 import { useLocale } from '../../providers/Locale/index.js'
@@ -39,6 +39,7 @@ export const Status: React.FC = () => {
   } = useConfig()
 
   const { reset: resetForm } = useForm()
+  const isSavedContentPublished = useFormIsSavedContentPublished()
   const { code: locale } = useLocale()
   const { i18n, t } = useTranslation()
 
@@ -46,7 +47,9 @@ export const Status: React.FC = () => {
 
   let statusToRender: 'changed' | 'draft' | 'published'
 
-  if (unpublishedVersionCount > 0 && hasPublishedDoc) {
+  if (hasPublishedDoc && isSavedContentPublished !== undefined) {
+    statusToRender = isSavedContentPublished ? 'published' : 'changed'
+  } else if (unpublishedVersionCount > 0 && hasPublishedDoc) {
     statusToRender = 'changed'
   } else if (!hasPublishedDoc) {
     statusToRender = 'draft'

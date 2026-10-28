@@ -29,6 +29,11 @@ export type ContentChanges = {
   hasUnpublishedChanges: boolean | undefined
   /** Whether the form content differs from the last successfully saved content. */
   hasUnsavedChanges: boolean
+  /**
+   * Whether the last successfully saved content is the same as the published content.
+   * `undefined` when the published content is unknown.
+   */
+  isSavedContentPublished: boolean | undefined
 }
 /** Only provided by document forms. */
 const ContentChangesContext = createContext<ContentChanges | null>(null)
@@ -73,6 +78,12 @@ const useFormHasUnsavedChanges = (): boolean => {
  */
 const useFormHasUnpublishedChanges = (): boolean | undefined =>
   use(ContentChangesContext)?.hasUnpublishedChanges
+/**
+ * Whether the last saved content is the same as the published content, or `undefined` if that is unknown.
+ * Unlike version history, this is `true` when a draft has been saved with the same content as the published version.
+ */
+const useFormIsSavedContentPublished = (): boolean | undefined =>
+  use(ContentChangesContext)?.isSavedContentPublished
 const useFormInitializing = (): boolean => use(InitializingContext)
 
 /**
@@ -110,6 +121,7 @@ export {
   useFormHasUnpublishedChanges,
   useFormHasUnsavedChanges,
   useFormInitializing,
+  useFormIsSavedContentPublished,
   useFormModified,
   useFormProcessing,
   useFormSubmitted,

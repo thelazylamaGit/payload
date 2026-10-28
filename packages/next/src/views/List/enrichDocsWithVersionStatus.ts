@@ -1,9 +1,12 @@
 import type { PaginatedDocs, PayloadRequest, SanitizedCollectionConfig } from 'payload'
 
+import { getCollectionDraftsSameAsPublished } from '../../utilities/getDraftsSameAsPublished.js'
+
 /**
  * Enriches list view documents with correct draft status display.
  * When draft=true is used in the query, Payload returns the latest draft version if it exists.
  * This function checks if draft documents also have a published version to determine "changed" status.
+ * Drafts with the same content as their published version have no changes to publish, so they are shown as "published".
  *
  * Performance: Uses a single query to find all documents with "changed" status instead of N queries.
  */
@@ -86,13 +89,20 @@ export async function enrichDocsWithVersionStatus({
       publishedVersions.docs.map((version) => version.parent).filter(Boolean),
     )
 
+    const draftsSameAsPublished = await getCollectionDraftsSameAsPublished({
+      collectionConfig,
+      ids: draftDocIds.filter((id) => hasPublishedVersionSet.has(id)),
+      payload: req.payload,
+      req,
+    })
+
     // Enrich documents with display status
     const enrichedDocs = data.docs.map((doc) => {
-      // If it's a draft and has a published version, show "changed"
+      // If it's a draft and has a published version, show "changed" unless its content is the same
       if (doc._status === 'draft' && hasPublishedVersionSet.has(doc.id)) {
         return {
           ...doc,
-          _displayStatus: 'changed' as const,
+          _displayStatus: draftsSameAsPublished.has(doc.id) ? 'published' : ('changed' as const),
         }
       }
 
