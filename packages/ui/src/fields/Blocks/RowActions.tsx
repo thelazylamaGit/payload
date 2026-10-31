@@ -77,6 +77,7 @@ export const RowActions: React.FC<{
         moveRow={moveRow}
         pasteBelow={pasteBelow}
         pasteBelowLabel={t('general:pasteBlockBelow')}
+        pasteLabel={t('general:pasteBlock')}
         pasteRow={pasteRow}
         removeRow={removeRow}
         rowCount={rowCount}

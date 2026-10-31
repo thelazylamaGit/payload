@@ -56,6 +56,7 @@ export const ArrayAction: React.FC<Props> = ({
       buttonClassName={`${baseClass}__button`}
       className={baseClass}
       horizontalAlign="center"
+      portalClassName={pasteBelow ? `${baseClass}__popup` : undefined}
       render={({ close }) => {
         return (
           <PopupList.ButtonGroup buttonSize="small">

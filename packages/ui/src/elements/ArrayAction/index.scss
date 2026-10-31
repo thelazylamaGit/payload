@@ -2,6 +2,11 @@
 
 @layer payload-default {
   .array-actions {
+    &__popup .popup__scroll-container {
+      max-height: none;
+      overflow: visible;
+    }
+
     &__button {
       @extend %btn-reset;
       cursor: pointer;
