@@ -26,6 +26,7 @@ const harness = vi.hoisted(() => ({
   isSavedContentPublished: undefined as boolean | undefined,
   modified: false,
   request: vi.fn(),
+  uploadEdits: undefined as Record<string, unknown> | undefined,
 }))
 
 vi.mock('next/navigation.js', () => ({ useRouter: () => ({ push: vi.fn() }) }))
@@ -67,6 +68,9 @@ vi.mock('../../providers/Translation/index.js', () => ({
 vi.mock('../../providers/UploadHandlers/index.js', () => ({
   useUploadHandlers: () => ({ getUploadHandler: vi.fn() }),
 }))
+vi.mock('../../providers/UploadEdits/index.js', () => ({
+  useUploadEdits: () => ({ uploadEdits: harness.uploadEdits }),
+}))
 vi.mock('../../hooks/useQueue.js', () => ({ useQueue: () => ({ queueTask: vi.fn() }) }))
 vi.mock('../../utilities/api.js', () => ({
   requests: { get: harness.get, patch: harness.request },
@@ -93,6 +97,7 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   harness.isDraftSameAsPublished = false
+  harness.uploadEdits = undefined
 })
 
 afterEach(() => {
@@ -191,6 +196,16 @@ describe('document form content changes', () => {
     settle()
 
     expect(harness.changes.hasUnsavedChanges).toBe(true)
+  })
+
+  it('should treat pending upload edits such as a focal point as unsaved changes', () => {
+    harness.uploadEdits = { focalPoint: { x: 20, y: 80 } }
+    renderForm()
+
+    act(() => harness.api.setModified(true))
+    settle()
+
+    expect(harness.changes).toStrictEqual({ hasUnpublishedChanges: true, hasUnsavedChanges: true })
   })
 
   it('should not treat fields registered without user interaction as changes', () => {

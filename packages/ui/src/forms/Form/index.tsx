@@ -40,6 +40,7 @@ import { useOperation } from '../../providers/Operation/index.js'
 import { useRouteTransition } from '../../providers/RouteTransition/index.js'
 import { useServerFunctions } from '../../providers/ServerFunctions/index.js'
 import { useTranslation } from '../../providers/Translation/index.js'
+import { useUploadEdits } from '../../providers/UploadEdits/index.js'
 import { useUploadHandlers } from '../../providers/UploadHandlers/index.js'
 import { abortAndIgnore, handleAbortRef } from '../../utilities/abortAndIgnore.js'
 import { requests } from '../../utilities/api.js'
@@ -120,6 +121,7 @@ export const Form: React.FC<FormProps> = (props) => {
   const { getFormState } = useServerFunctions()
   const { startRouteTransition } = useRouteTransition()
   const { getUploadHandler } = useUploadHandlers()
+  const { uploadEdits } = useUploadEdits()
 
   const { config } = useConfig()
 
@@ -1103,6 +1105,25 @@ export const Form: React.FC<FormProps> = (props) => {
     250,
   )
 
+  /**
+   * Upload edits (crop, focal point and resize) are kept outside of the form state until they are
+   * saved, after which they are reset, so pending edits are always an unsaved change.
+   */
+  const hasPendingUploadEdits = Object.values(uploadEdits || {}).some((edit) => edit != null)
+
+  const contentChangesWithUploadEdits = useMemo<ContentChanges>(
+    () =>
+      hasPendingUploadEdits
+        ? {
+            ...contentChanges,
+            hasUnpublishedChanges:
+              contentChanges.hasUnpublishedChanges === undefined ? undefined : true,
+            hasUnsavedChanges: true,
+          }
+        : contentChanges,
+    [contentChanges, hasPendingUploadEdits],
+  )
+
   const DocumentFormContextComponent: React.FC<any> = isDocumentForm
     ? DocumentFormContext
     : React.Fragment
@@ -1143,7 +1164,9 @@ export const Form: React.FC<FormProps> = (props) => {
                 <ProcessingContext value={processing}>
                   <BackgroundProcessingContext value={backgroundProcessing}>
                     <ModifiedContext value={modified}>
-                      <ContentChangesContext value={isDocumentForm ? contentChanges : null}>
+                      <ContentChangesContext
+                        value={isDocumentForm ? contentChangesWithUploadEdits : null}
+                      >
                         {/* eslint-disable-next-line @eslint-react/no-context-provider */}
                         <FormFieldsContext.Provider value={fieldsReducer}>
                           {children}
