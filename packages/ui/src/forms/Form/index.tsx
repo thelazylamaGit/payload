@@ -279,8 +279,9 @@ export const Form: React.FC<FormProps> = (props) => {
 
     const timeout = setTimeout(() => {
       void getIsDraftSameAsPublished({
+        config,
+        fields: docConfig.fields,
         ignoredPaths: ignoredContentPaths,
-        isLocalized: Boolean(config.localization),
         signal: controller.signal,
         url: formatAdminURL({
           apiRoute: config.routes.api,
@@ -320,6 +321,7 @@ export const Form: React.FC<FormProps> = (props) => {
     cancelCheckPublishedContent,
     collectionSlug,
     config,
+    docConfig,
     globalSlug,
     hasPublishedDoc,
     id,

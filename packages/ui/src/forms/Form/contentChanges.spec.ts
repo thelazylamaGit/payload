@@ -48,7 +48,11 @@ vi.mock('../../providers/DocumentInfo/index.js', () => ({
   useDocumentInfo: () => ({
     id: 1,
     collectionSlug: 'posts',
-    docConfig: { slug: 'posts', versions: { drafts: {} } },
+    docConfig: {
+      slug: 'posts',
+      fields: [{ name: 'title', type: 'text' }],
+      versions: { drafts: {} },
+    },
     getDocPreferences: async () => ({}),
     hasPublishedDoc: true,
     isDraftSameAsPublished: harness.isDraftSameAsPublished,
@@ -178,6 +182,20 @@ describe('document form content changes', () => {
     settle()
 
     expect(harness.changes.hasUnsavedChanges).toBe(false)
+  })
+
+  it('should compare data within JSON values exactly', () => {
+    renderForm()
+
+    edit('json', {})
+    settle()
+
+    expect(harness.changes.hasUnsavedChanges).toBe(true)
+
+    edit('json', { items: [] })
+    settle()
+
+    expect(harness.changes.hasUnsavedChanges).toBe(true)
   })
 
   it('should treat an empty rich text editor as no value', () => {

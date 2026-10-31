@@ -58,7 +58,7 @@ export const getCollectionDraftsSameAsPublished = async ({
   // Sequential, as parallel queries are slower with some database adapters
   const drafts = await find(true)
   const published = new Map((await find(false)).map((doc) => [doc.id, doc]))
-  const ignoredPaths = getIgnoredContentPaths(collectionConfig)
+  const contentArgs = getContentArgs({ entityConfig: collectionConfig, payload })
 
   for (const draft of drafts) {
     const publishedDoc = published.get(draft.id)
@@ -66,7 +66,7 @@ export const getCollectionDraftsSameAsPublished = async ({
     if (
       publishedDoc &&
       isPublishedStatus(publishedDoc._status) &&
-      isSameDocumentContent({ a: draft, b: publishedDoc, ignoredPaths })
+      isSameDocumentContent({ a: draft, b: publishedDoc, ...contentArgs })
     ) {
       result.add(draft.id)
     }
@@ -105,7 +105,20 @@ export const getIsGlobalDraftSameAsPublished = async ({
     isSameDocumentContent({
       a: draft,
       b: published,
-      ignoredPaths: getIgnoredContentPaths(globalConfig),
+      ...getContentArgs({ entityConfig: globalConfig, payload }),
     })
   )
 }
+
+const getContentArgs = ({
+  entityConfig,
+  payload,
+}: {
+  entityConfig: SanitizedCollectionConfig | SanitizedGlobalConfig
+  payload: Payload
+}): Omit<Parameters<typeof isSameDocumentContent>[0], 'a' | 'b'> => ({
+  blocks: payload.blocks,
+  fields: entityConfig.fields,
+  ignoredPaths: getIgnoredContentPaths(entityConfig),
+  localeCodes: payload.config.localization ? payload.config.localization.localeCodes : undefined,
+})

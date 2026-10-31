@@ -9,6 +9,21 @@ import type {
 import { dequal } from 'dequal/lite'
 
 /**
+ * The parts of a field config, client or server, needed to read its values from a document.
+ */
+type ContentField = {
+  blockReferences?: (ContentBlock | string)[]
+  blocks?: ContentBlock[]
+  fields?: ContentField[]
+  localized?: boolean
+  name?: string
+  tabs?: { fields: ContentField[]; name?: string }[]
+  type: string
+}
+
+type ContentBlock = { fields: ContentField[]; slug: string }
+
+/**
  * Document fields that change on every save or publish without the user editing them.
  */
 export const getIgnoredContentPaths = (
@@ -24,20 +39,136 @@ export const getIgnoredContentPaths = (
     : ['_status', 'createdAt', 'updatedAt']
 
 /**
- * Whether two versions of a document have the same content, ignoring the given top-level paths and
- * values that are visually empty. Both must have the same representation, e.g. both from the API
- * or both from form state.
+ * A field value that is visually empty, so that e.g. clearing a field that had no value,
+ * or undoing all input in an empty rich text editor, is not a change.
+ * Only applies to whole field values, never to data within a value such as JSON.
+ */
+export const isEmptyValue = (value: unknown): boolean =>
+  value === null ||
+  value === undefined ||
+  value === '' ||
+  (Array.isArray(value) && value.length === 0) ||
+  (typeof value === 'object' && isEmptyRichText(value as Record<string, unknown>))
+
+/**
+ * Returns the non-empty values of a document by field path, read using its field config.
+ * Documents read with `locale: 'all'` have their localized values keyed by locale.
+ */
+export const getDocumentContent = ({
+  blocks,
+  data,
+  fields,
+  ignoredPaths,
+  localeCodes,
+}: {
+  blocks?: Record<string, ContentBlock>
+  data: Data
+  fields: ContentField[]
+  ignoredPaths: string[]
+  /** The locales of a document read with `locale: 'all'` */
+  localeCodes?: string[]
+}): Data => {
+  const content: Data = {}
+
+  const getBlock = (field: ContentField, slug: unknown): ContentBlock | undefined => {
+    const block =
+      field.blocks?.find((block) => block.slug === slug) ??
+      field.blockReferences?.find((block) =>
+        typeof block === 'string' ? block === slug : block.slug === slug,
+      )
+
+    return typeof block === 'string' ? blocks?.[block] : block
+  }
+
+  const addValue = (path: string, value: unknown) => {
+    if (!isEmptyValue(value)) {
+      content[path] = value
+    }
+  }
+
+  const addFields = (fields: ContentField[], data: Data, path: string, isLocalized: boolean) => {
+    for (const field of fields) {
+      if (field.type === 'tabs') {
+        for (const tab of field.tabs ?? []) {
+          if (tab.name) {
+            addField({ name: tab.name, type: 'group', fields: tab.fields }, data, path, isLocalized)
+          } else {
+            addFields(tab.fields, data, path, isLocalized)
+          }
+        }
+      } else if (!field.name) {
+        // Rows, collapsibles and unnamed groups store their fields in the parent
+        addFields(field.fields ?? [], data, path, isLocalized)
+      } else if (!path && ignoredPaths.includes(field.name)) {
+        continue
+      } else {
+        addField(field, data, path, isLocalized)
+      }
+    }
+  }
+
+  const addField = (field: ContentField, data: Data, parentPath: string, isLocalized: boolean) => {
+    if (field.type === 'ui' || field.type === 'join') {
+      return
+    }
+
+    const path = parentPath ? `${parentPath}.${field.name}` : field.name
+    const value = data?.[field.name]
+
+    if (field.localized && !isLocalized && localeCodes && isLocaleValue(value, localeCodes)) {
+      for (const [locale, localeValue] of Object.entries(value)) {
+        addFieldValue(field, localeValue, `${path}.${locale}`, true)
+      }
+    } else {
+      addFieldValue(field, value, path, isLocalized || Boolean(field.localized))
+    }
+  }
+
+  const addFieldValue = (
+    field: ContentField,
+    value: unknown,
+    path: string,
+    isLocalized: boolean,
+  ) => {
+    if (field.type === 'group' && value && typeof value === 'object') {
+      addFields(field.fields ?? [], value as Data, path, isLocalized)
+    } else if ((field.type === 'array' || field.type === 'blocks') && Array.isArray(value)) {
+      value.forEach((row: Data, index) => {
+        const rowPath = `${path}.${index}`
+        const rowFields =
+          field.type === 'array' ? field.fields : getBlock(field, row?.blockType)?.fields
+
+        if (!rowFields) {
+          addValue(rowPath, row)
+          return
+        }
+
+        addValue(`${rowPath}.id`, row?.id)
+        addValue(`${rowPath}.blockType`, row?.blockType)
+        addFields(rowFields, row, rowPath, isLocalized)
+      })
+    } else {
+      addValue(path, value)
+    }
+  }
+
+  addFields(fields ?? [], data, '', false)
+
+  return content
+}
+
+/**
+ * Whether two versions of a document have the same content, ignoring values that are visually empty.
  */
 export const isSameDocumentContent = ({
   a,
   b,
-  ignoredPaths,
+  ...args
 }: {
   a: Data
   b: Data
-  ignoredPaths: string[]
-}): boolean =>
-  isSameContent(getDocumentContent(a, ignoredPaths), getDocumentContent(b, ignoredPaths))
+} & Omit<Parameters<typeof getDocumentContent>[0], 'data'>): boolean =>
+  isSameContent(getDocumentContent({ data: a, ...args }), getDocumentContent({ data: b, ...args }))
 
 /**
  * Whether a document read with `locale: 'all'` or a single locale is published in all of its locales.
@@ -49,27 +180,13 @@ export const isPublishedStatus = (status: unknown): boolean =>
     Object.values(status).every((localeStatus) => localeStatus === 'published'))
 
 /**
- * Returns the content of a document without the given top-level paths and without empty values.
- * Nested values are shared with the given document.
- */
-export const getDocumentContent = (doc: Data, ignoredPaths: string[]): Data => {
-  const content = { ...doc }
-
-  for (const path of ignoredPaths) {
-    delete content[path]
-  }
-
-  return (withoutEmptyValues(content) as Data) ?? {}
-}
-
-/**
- * Compares content returned by `getDocumentContent`.
+ * Compares content returned by `getDocumentContent` or `getFormContent`.
  */
 export const isSameContent = (a: Data, b: Data): boolean => {
   // `dequal` considers any two File objects equal, so a newly selected file must be compared by reference
   if (
-    ((typeof File !== 'undefined' && a.file instanceof File) ||
-      (typeof File !== 'undefined' && b.file instanceof File)) &&
+    typeof File !== 'undefined' &&
+    (a.file instanceof File || b.file instanceof File) &&
     a.file !== b.file
   ) {
     return false
@@ -77,6 +194,12 @@ export const isSameContent = (a: Data, b: Data): boolean => {
 
   return dequal(a, b)
 }
+
+const isLocaleValue = (value: unknown, localeCodes: string[]): value is Record<string, unknown> =>
+  Boolean(value) &&
+  typeof value === 'object' &&
+  !Array.isArray(value) &&
+  Object.keys(value).every((key) => localeCodes.includes(key))
 
 /**
  * A rich text editor with no content, which is equivalent to an empty value.
@@ -94,65 +217,4 @@ const isEmptyRichText = (value: Record<string, unknown>): boolean => {
     !paragraph ||
     (rest.length === 0 && paragraph.type === 'paragraph' && !paragraph.children?.length)
   )
-}
-
-/**
- * Removes values that are visually empty, so that e.g. clearing a field that had no value,
- * or undoing all input in an empty rich text editor, is not a change.
- * Returns the same references for values that contain nothing empty.
- */
-const withoutEmptyValues = (value: unknown): unknown => {
-  if (value === null || value === undefined || value === '') {
-    return undefined
-  }
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      return undefined
-    }
-
-    let result: undefined | unknown[]
-
-    value.forEach((item, index) => {
-      // Array items keep their position, so empty items become `null` rather than being removed
-      const normalized = withoutEmptyValues(item) ?? null
-
-      if (normalized !== item) {
-        result ??= [...value]
-        result[index] = normalized
-      }
-    })
-
-    return result ?? value
-  }
-
-  if (
-    typeof value !== 'object' ||
-    (typeof File !== 'undefined' && value instanceof File) ||
-    value instanceof Date
-  ) {
-    return value
-  }
-
-  if (isEmptyRichText(value as Record<string, unknown>)) {
-    return undefined
-  }
-
-  let result: Record<string, unknown> | undefined
-
-  for (const [key, item] of Object.entries(value)) {
-    const normalized = withoutEmptyValues(item)
-
-    if (normalized !== item) {
-      result ??= { ...value }
-
-      if (normalized === undefined) {
-        delete result[key]
-      } else {
-        result[key] = normalized
-      }
-    }
-  }
-
-  return result ?? value
 }

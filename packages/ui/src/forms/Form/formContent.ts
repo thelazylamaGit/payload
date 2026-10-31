@@ -1,10 +1,11 @@
-import type { Data, FormState } from 'payload'
-
-import { dequal } from 'dequal/lite'
-import { reduceFieldsToValues } from 'payload/shared'
+import type { ClientConfig, ClientField, Data, FormState } from 'payload'
 
 import { requests } from '../../utilities/api.js'
-import { getDocumentContent, isPublishedStatus } from '../../utilities/documentContent.js'
+import {
+  isEmptyValue,
+  isPublishedStatus,
+  isSameDocumentContent,
+} from '../../utilities/documentContent.js'
 
 export {
   getIgnoredContentPaths,
@@ -12,8 +13,8 @@ export {
 } from '../../utilities/documentContent.js'
 
 /**
- * Returns the values the form would submit, without form metadata (validation, collapsed rows, etc.),
- * without the given top-level paths and without empty values. Nested values are shared with the form state.
+ * Returns the non-empty values the form would submit by path, without form metadata
+ * (validation, collapsed rows, etc.) and without the given top-level paths.
  */
 export const getFormContent = ({
   fields,
@@ -21,27 +22,46 @@ export const getFormContent = ({
 }: {
   fields: FormState
   ignoredPaths: string[]
-}): Data => getDocumentContent(reduceFieldsToValues(fields, true), ignoredPaths)
+}): Data => {
+  const content: Data = {}
+
+  for (const [path, field] of Object.entries(fields || {})) {
+    if (
+      field &&
+      !field.disableFormData &&
+      !ignoredPaths.includes(path) &&
+      !isEmptyValue(field.value)
+    ) {
+      content[path] = field.value
+    }
+  }
+
+  return content
+}
 
 /**
  * Whether the latest draft of a document has the same content as its published version.
  * Both are read through the same API, so their representations can be compared directly.
  */
 export const getIsDraftSameAsPublished = async ({
+  config,
+  fields,
   ignoredPaths,
-  isLocalized,
   signal,
   url,
 }: {
+  config: ClientConfig
+  fields: ClientField[]
   ignoredPaths: string[]
-  isLocalized: boolean
   signal: AbortSignal
   url: string
 }): Promise<boolean> => {
+  const localeCodes = config.localization ? config.localization.localeCodes : undefined
+
   const [draft, published] = await Promise.all(
     [true, false].map(async (draft) => {
       const res = await requests.get(url, {
-        params: { depth: 0, draft, ...(isLocalized ? { locale: 'all' } : {}) },
+        params: { depth: 0, draft, ...(localeCodes ? { locale: 'all' } : {}) },
         signal,
       })
 
@@ -55,6 +75,13 @@ export const getIsDraftSameAsPublished = async ({
 
   return (
     isPublishedStatus(published._status) &&
-    dequal(getDocumentContent(draft, ignoredPaths), getDocumentContent(published, ignoredPaths))
+    isSameDocumentContent({
+      a: draft,
+      b: published,
+      blocks: config.blocksMap,
+      fields: fields as Parameters<typeof isSameDocumentContent>[0]['fields'],
+      ignoredPaths,
+      localeCodes,
+    })
   )
 }
